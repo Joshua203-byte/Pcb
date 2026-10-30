@@ -406,19 +406,19 @@
 </variantdefs>
 <classes>
 <class number="0" name="senal" width="0.8" drill="0.8">
-<clearance class="0" value="1" />
-<clearance class="1" value="1" />
-<clearance class="2" value="1" />
+<clearance class="0" value="0" />
+<clearance class="1" value="0" />
+<clearance class="2" value="0" />
 </class>
 <class number="1" name="potencia" width="0.8" drill="0.8">
-<clearance class="0" value="1" />
-<clearance class="1" value="1" />
-<clearance class="2" value="1" />
+<clearance class="0" value="0" />
+<clearance class="1" value="0" />
+<clearance class="2" value="0" />
 </class>
 <class number="2" name="alim" width="0.8" drill="0.8">
-<clearance class="0" value="1" />
-<clearance class="1" value="1" />
-<clearance class="2" value="1" />
+<clearance class="0" value="0" />
+<clearance class="1" value="0" />
+<clearance class="2" value="0" />
 </class>
 </classes>
 <designrules name="PBL v19 (planchado / percloruro)">

@@ -212,12 +212,12 @@ def escribir_brd(st, tr, top, archivo):
     for prm in dr.findall('param'):
         if prm.get('name') in nuevos:
             prm.set('value', nuevos[prm.get('name')])
-    # clases: ancho minimo 0.8 y separacion 1.0 para todas
+    # clases: ancho minimo 0.8; separacion 0 = usar las reglas de diseno (pad-pad 0.5, pista 1.0)
     cl = b.find('classes')
     for c in cl:
         c.set('width', '0.8')
         for cc in c:
-            cc.set('value', '1')
+            cc.set('value', '0')
     clase = {'PV': '1', 'LB': '1', '5V': '2', '3V3': '2', 'GND': '2'}
     # elementos
     els = b.find('elements')
@@ -349,7 +349,7 @@ def escribir_sch(st, archivo):
     for c in s.find('classes'):
         c.set('width', '0.8')
         for cc in c:
-            cc.set('value', '1')
+            cc.set('value', '0')
     for t in sheet.find('plain').iter('text'):
         if t.text and t.text.startswith('PBL Semiconductores'):
             t.text = 'PBL Semiconductores EE2002 - Monitor I-V de panel 1.5 W (ESP32 DevKitC) - v19'
