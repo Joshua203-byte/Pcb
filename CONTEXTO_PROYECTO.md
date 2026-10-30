@@ -2,7 +2,7 @@
 
 > **Instrucción para Claude:** cada vez que se cambie, cree o entregue algo en este proyecto, actualizá este archivo: (1) el mapa de archivos si aparece o cambia uno, (2) el estado y los pendientes, y (3) agregá una línea al **Registro de cambios** (arriba, la más reciente primero) con fecha, qué cambió y por qué. Este archivo vive en la carpeta Semiconductores del usuario.
 
-Última actualización: 2026-10-12 (noche)
+Última actualización: 2026-10-30
 
 ---
 
@@ -33,6 +33,7 @@ Fecha de entrega: pendiente de confirmar (se había anotado 5–9 de octubre; ho
 
 - **Panel:** 5 V / 1.5 W nominal, área 0.01035 m², η STC 14.5 %. **Voc = 9 V** "según las pruebas del equipo" (en la práctica 3 se midieron 9.09 V con una carga de 220 Ω, así que el real es ≥ 9.09 V; máximo de diseño 11 V). **Isc = 0.212 A, Vmp = 7.5 V, Imp = 0.200 A son estimaciones de Claude, NO medidas** (contradicen el Avance 1, que decía Isc 315–330 mA). Falta medir Voc e Isc con multímetro al sol.
 - **Microcontrolador:** ESP32-WROOM-32 (lógica de 3.3 V, Wi-Fi, I²C). Relés por GPIO13, 14, 16, 17, 18, 19, 23, 25; I²C en GPIO21 (SDA) y GPIO22 (SCL); DS18B20 en GPIO4.
+  - **Pines de la PCB v19 (los que valen para el firmware):** I²C SDA = GPIO33, SCL = GPIO32; DS18B20 = GPIO14; microSD MISO/MOSI/SCK/CS = 19/18/5/17; relés IN1…IN8 = GPIO16, 4, 21, 22, 23, 25, 26, 27. Detalle en `PLAN_PCB_v19.md`.
 - **ADC:** ADS1115. Voltaje del módulo por divisor 33 kΩ / 10 kΩ (4.3:1) con filtro RC 1 kΩ / 0.1 µF → A0, escala **±4.096 V** (125 µV por cuenta). Corriente por derivación de 1 Ω entre A2 y A3, escala ±0.512 V (15.625 µV por cuenta). Celda de referencia con otra derivación de 1 Ω en A1.
 - **Cargas:** 2.2, 4.7, 10, 22, 47, 100, 220, 470 Ω conmutadas por un módulo de 8 relés de 5 V. Barrido de **23 puntos** elegidos entre las 256 combinaciones.
 - **Alimentación:** powerbank de 10 000 mAh (5 V) para ESP32 (VIN) y bobinas de los relés. Consumo promedio 164 mA, pico 740 mA, ≈ 27 h de autonomía (supuestos: relé 71 + 5 mA por canal, ESP32 130 mA, 60 % de uso). La powerbank **ya era del equipo** (no se compró para el proyecto) y se incluye en el presupuesto con un valor de referencia de **$20**.
@@ -134,6 +135,13 @@ Todo lo que **no es un dato medido o confirmado** y todo lo que cambió respecto
 - `Dashboard_v2_captura_claro.png`, `Dashboard_v2_captura_oscuro.png` **(generado)** — capturas del v2 (las del documento salen de la clara).
 - `Dashboard_prototipo.html`, `Dashboard_captura.png` **(generado)** — primer prototipo, reemplazado por el v2.
 
+### PCB (Fusion / EAGLE)
+- `PCB_ESP32_v4` … `v18` (`.brd`, `.sch`, algunas con `_vista.png`) — versiones anteriores. La v10 era la última sin errores; v11–v18 tenían errores de DRC (puentes sin cobre = "cable de interconexión", GND en islas, pad cerca del borde).
+- `PCB_ESP32_v19.brd`, `PCB_ESP32_v19.sch` **(generado)** — versión para fabricar: 1 puente (3V3), reglas 1.0 mm / relleno 1.3 mm, cargas a 12.7 mm, IN1–IN8 en una columna. DRC propio 0 errores (falta confirmar en Fusion).
+- `PCB_ESP32_v19_vista.png`, `PCB_ESP32_v19_cobre_1a1.pdf` **(generado)** — vista y cobre 1:1 para planchado (sin espejar).
+- `PLAN_PCB_v19.md` **(generado)** — diagnóstico de v18, plan aplicado, GPIO nuevos, pasos en Fusion y armado.
+- `herramientas/` **(generado)** — scripts Python que generan y verifican la v19 desde la v10 (`generar_v19.py`, `verificar_brd.py`).
+
 ### Simulación
 - `Simulacion/` **(generado)** — simulación con ngspice del circuito de adquisición: `panel_circuito_adquisicion.cir` (lista de conexiones), `run.py` y `analyze.py` (scripts), `puntos_barrido.csv` (los 23 puntos con su máscara de relés), `fig_sim_iv.pdf` y `fig_sim_tr.pdf` (gráficas del documento). Resumen de resultados: ver sección IX del PDF.
 
@@ -167,6 +175,7 @@ Todo lo que **no es un dato medido o confirmado** y todo lo que cambió respecto
 5. Confirmar **fecha de entrega**.
 6. Conectar el **dashboard al servidor real** (servidor Python + código del ESP32; ofrecido, no hecho).
 7. Si Daniel corrige el esquemático, volver a plotear a PDF y reemplazar el Anexo A y la Fig. 4 (y quitar de Limitaciones lo que ya no aplique).
+8. **PCB v19:** abrirla en Fusion, Ratsnest + DRC (esperado 0 errores); medir la separación entre filas de la DevKit (25.40 o 22.86 mm); confirmar si RTC y microSD vienen con pines en L; usar los GPIO nuevos en el firmware.
 
 ### Revisión contra la rúbrica (2026-10-12) — brechas detectadas y su cierre
 - Fecha de entrega en la portada: HECHO (12 de octubre de 2026).
@@ -184,6 +193,12 @@ El PDF se arma en el espacio de trabajo de Claude con `assemble.py` (reordena y 
 ---
 
 ## Registro de cambios (más reciente primero)
+
+### 2026-10-30 — PCB v19 generada por script
+- Diagnóstico de la v18: los 8 errores "cable de interconexión" venían de puentes hechos con dos pads JP sin cobre entre ellos; además GND quedaba en 7 islas y un pad estaba cerca del borde.
+- Nueva `PCB_ESP32_v19` desde la v10 con `herramientas/generar_v19.py`: separaciones 1.0 mm (pista-pista y pista-pad), relleno GND 1.3 mm, pads ovalados 1.8×2.7 en tiras, resistencias de carga a 12.7 mm, borneras en el borde, un solo puente (3V3, dibujado en capa superior para que Fusion lo dé por conectado), 5V de la microSD por pista, GND continuo. Tamaño 102.9 × 67.3 mm.
+- GPIO reasignados para evitar cruces (I²C 33/32, DS18B20 14, relés 16, 4, 21, 22, 23, 25, 26, 27). Se quitó TP1. Pin 38 del ESP32 conectado a GND.
+- Supuestos: DevKit con filas a 25.40 mm (configurable a 22.86), ADS1115 acostado (28×17.8 mm), RTC y microSD parados con pines en L. Falta abrirla en Fusion y correr su DRC.
 
 ### 2026-10-13 (00:30) — correcciones tras revisión externa
 - Dashboard: MOCK_POINTS 32 → 23 (coherente con el diseño); capturas y Figs. 5–6 regeneradas; texto actualizado (PR diario 88.4 %, 4 días bajo umbral, Pmax −11.0 %, FF 0.0 %).

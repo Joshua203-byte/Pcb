@@ -1,0 +1,120 @@
+"""Geometria de huellas, colocacion y reglas para la PCB v19.
+
+Todas las medidas en mm. Origen de la placa abajo a la izquierda.
+Cobre solo en la cara inferior (capa 16). Los puentes de cable se dibujan
+como pistas en la capa superior (1): en Fusion cuentan como conexion
+(no hay "cables de interconexion" sin rutear), pero esa capa NO se
+fabrica; en la placa real son cables soldados entre pads JP.
+"""
+import math
+from shapely.geometry import Point, LineString, box, Polygon
+from shapely import affinity
+
+# ---------------------------------------------------------------- reglas
+REGLAS = dict(
+    pista_pista=1.0,      # separacion minima entre pistas
+    pista_pad=1.0,        # separacion minima pista-pad
+    pad_pad=0.5,          # pads de una misma tira (2.54 mm) quedan a ~0.7
+    cobre_borde=1.5,      # cobre al borde de la placa
+    aislamiento_gnd=1.3,  # relleno GND a cualquier otra cosa
+    ancho_relleno=0.8,    # el relleno no deja tiras mas finas que esto
+    elong_long=50,        # pads ovalados de tiras: 1.8 x 2.7 mm
+)
+
+ANCHO = {  # ancho de pista por red
+    'PV': 1.5, 'LB': 1.5, '5V': 1.0, 'GND': 1.0, '3V3': 1.0,
+}
+ANCHO_DEF = 0.8
+
+
+def ancho(net):
+    return ANCHO.get(net, ANCHO_DEF)
+
+
+# ---------------------------------------------------------------- huellas
+# pad: (nombre, x, y, taladro, diametro, forma)  forma: round|square|long
+def tira(n, taladro, dia, forma='long'):
+    return [(str(i + 1), 0.0, -2.54 * i, taladro, dia,
+             'square' if (i == 0 and forma != 'long') else forma)
+            for i in range(n)]
+
+
+def esp32(sep=25.4):
+    pads = []
+    for i in range(19):
+        pads.append((str(i + 1), 0.0, -2.54 * i, 0.9, 1.8, 'long'))
+    for i in range(19):
+        pads.append((str(38 - i), sep, -2.54 * i, 0.9, 1.8, 'long'))
+    return pads
+
+
+SEP_ESP32 = 25.4  # MEDIR la DevKit real: algunas son 22.86
+
+HUELLAS = {
+    'ESP32_DEVKIT38': dict(
+        pads=esp32(SEP_ESP32),
+        desc='ESP32 DevKitC 38 pines en dos tiras hembra 1x19, filas a %.2f mm (MEDIR la tuya), pads ovalados 1.8x2.7, taladro 0.9' % SEP_ESP32,
+        cuerpo=(-1.25, 6.5, SEP_ESP32 + 1.25, -48.2)),
+    'SOCKET_1X06': dict(pads=tira(6, 0.9, 1.8),
+                        desc='Tira hembra 1x6, paso 2.54, taladro 0.9, pad ovalado 1.8x2.7'),
+    'SOCKET_1X10': dict(pads=tira(10, 0.9, 1.8),
+                        desc='Tira hembra 1x10, paso 2.54, taladro 0.9, pad ovalado 1.8x2.7'),
+    'MALE_1X02': dict(pads=tira(2, 1.0, 1.8),
+                      desc='Tira macho 1x2, paso 2.54, taladro 1.0, pad ovalado 1.8x2.7'),
+    'MALE_1X03': dict(pads=tira(3, 1.0, 1.8),
+                      desc='Tira macho 1x3, paso 2.54, taladro 1.0, pad ovalado 1.8x2.7'),
+    'MALE_1X08': dict(pads=tira(8, 1.0, 1.8),
+                      desc='Tira macho 1x8, paso 2.54, taladro 1.0, pad ovalado 1.8x2.7'),
+    'MALE_1X10': dict(pads=tira(10, 1.0, 1.8),
+                      desc='Tira macho 1x10, paso 2.54, taladro 1.0, pad ovalado 1.8x2.7'),
+    'TERM2_5MM': dict(pads=[('1', 0, 0, 1.3, 3.2, 'square'), ('2', 5.08, 0, 1.3, 3.2, 'round')],
+                      desc='Bornera de tornillo 2 pines, paso 5.08, taladro 1.3, pad 3.2',
+                      cuerpo=(-2.6, 3.6, 7.7, -3.6)),
+    'RES_V': dict(pads=[('1', 0, 0, 0.9, 2.4, 'square'), ('2', 5.08, 0, 0.9, 2.4, 'round')],
+                  desc='Resistencia 1/2 W o 1 W montada vertical, separacion 5.08, taladro 0.9, pad 2.4'),
+    'RES_H_T': dict(pads=[('1', 0, 0, 1.3, 3.0, 'square'), ('2', 12.7, 0, 0.9, 2.4, 'round')],
+                    desc='Resistencia de carga 1/2 W acostada, separacion 12.7; pad 1 grande: aqui tambien se suelda el cable NO del rele',
+                    cuerpo=(1.9, 1.8, 10.8, -1.8)),
+    'CAP_5MM': dict(pads=[('1', 0, 0, 0.9, 2.4, 'square'), ('2', 5.08, 0, 0.9, 2.4, 'round')],
+                    desc='Capacitor poliester, paso 5.08, taladro 0.9, pad 2.4',
+                    cuerpo=(-1.6, 1.8, 6.7, -1.8)),
+    'CAP_E_2_54': dict(pads=[('1', 0, 0, 0.8, 1.8, 'square'), ('2', 2.54, 0, 0.8, 1.8, 'round')],
+                       desc='Capacitor electrolitico radial 2.54, pin 1 = +, taladro 0.8'),
+    'WIREPAD': dict(pads=[('1', 0, 0, 1.3, 3.0, 'round')],
+                    desc='Pad para cable al modulo de reles, taladro 1.3, pad 3.0'),
+    'JPAD': dict(pads=[('1', 0, 0, 1.0, 2.5, 'round')],
+                 desc='Pad exclusivo para cable puente (cara de componentes), taladro 1.0, pad 2.5'),
+}
+
+
+def rot_xy(x, y, rot):
+    a = math.radians(rot)
+    return (x * math.cos(a) - y * math.sin(a), x * math.sin(a) + y * math.cos(a))
+
+
+def pad_shape(dia, forma, rot):
+    """Forma del pad centrada en el origen (rot en grados)."""
+    if forma == 'round':
+        return Point(0, 0).buffer(dia / 2, 32)
+    if forma == 'square':
+        g = box(-dia / 2, -dia / 2, dia / 2, dia / 2)
+    else:  # long: ovalo, largo = dia*(1+elong)
+        L = dia * (1 + REGLAS['elong_long'] / 100.0)
+        g = LineString([(-(L - dia) / 2, 0), ((L - dia) / 2, 0)]).buffer(dia / 2, 32)
+    return affinity.rotate(g, rot, origin=(0, 0))
+
+
+class Parte:
+    def __init__(self, nombre, paquete, valor, x, y, rot=0):
+        self.nombre, self.paquete, self.valor = nombre, paquete, valor
+        self.x, self.y, self.rot = x, y, rot
+
+    def pads(self):
+        out = []
+        for (pn, px, py, dr, dia, forma) in HUELLAS[self.paquete]['pads']:
+            rx, ry = rot_xy(px, py, self.rot)
+            cx, cy = self.x + rx, self.y + ry
+            g = affinity.translate(pad_shape(dia, forma, self.rot), cx, cy)
+            out.append(dict(parte=self.nombre, pad=pn, x=cx, y=cy, drill=dr,
+                            dia=dia, forma=forma, geom=g))
+        return out
