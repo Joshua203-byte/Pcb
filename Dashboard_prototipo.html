@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dashboard Panel Solar</title>
+<style>
+:root{--bg:#F6F7F9;--card:#fff;--ink:#14181F;--ink2:#4A5260;--mut:#7A8393;--line:#E3E6EB;--grid:#EDEFF3;
+--a:#2E75C9;--b:#B8560F;--ok:#1E7A4B;--warn:#9A6200;--crit:#B3261E;--critbg:#FCEBE9;--okbg:#E6F4EC;--warnbg:#FFF3DC}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0F1218;--card:#171B23;--ink:#ECEFF4;--ink2:#B3BAC7;--mut:#8791A2;--line:#262C38;--grid:#1F2430;
+--a:#5B9BE6;--b:#E0883F;--ok:#5CC48A;--warn:#E6B04A;--crit:#F08B83;--critbg:#3A1F1D;--okbg:#17302A;--warnbg:#3A2E14}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.4 system-ui,Segoe UI,Roboto,sans-serif}
+.wrap{max-width:1240px;margin:0 auto;padding:20px 16px 28px}
+header{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:center;margin-bottom:14px}
+h1{font-size:20px;margin:0}h1 small{display:block;font-weight:400;color:var(--mut);font-size:12.5px;margin-top:2px}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:99px;font-weight:600;font-size:13px}
+.pill.ok{background:var(--okbg);color:var(--ok)}.pill.crit{background:var(--critbg);color:var(--crit)}
+.grid{display:grid;gap:12px}.kpis{grid-template-columns:repeat(6,1fr)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.k .l{color:var(--mut);font-size:12px}.k .v{font-size:26px;font-weight:650;letter-spacing:-.5px}.k .v span{font-size:13px;color:var(--ink2);font-weight:500;margin-left:3px}
+.k .s{font-size:11.5px;color:var(--mut)}
+h2{font-size:13px;margin:0 0 2px;font-weight:650}.sub{color:var(--mut);font-size:11.5px;margin-bottom:4px}
+.row{margin-top:12px}.r3{grid-template-columns:repeat(3,1fr)}.r2{grid-template-columns:1fr 1fr}.r2b{grid-template-columns:1.4fr 1fr}
+svg{width:100%;height:auto;display:block;overflow:visible}svg text{fill:var(--mut);font-size:10.5px}
+.leg{display:flex;gap:14px;font-size:11.5px;color:var(--ink2);margin:2px 0 2px}.leg i{display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:5px;vertical-align:middle}
+.leg i.d{background:repeating-linear-gradient(90deg,var(--b) 0 5px,transparent 5px 8px)}
+.tip{position:fixed;pointer-events:none;background:var(--ink);color:var(--bg);padding:5px 8px;border-radius:6px;font-size:12px;display:none;z-index:9;white-space:nowrap}
+.alert{border-left:4px solid var(--crit);background:var(--critbg)}.alert.ok{border-color:var(--ok);background:var(--okbg)}
+.alert h2{color:var(--crit);font-size:14px}.alert.ok h2{color:var(--ok)}
+.alert p{margin:4px 0;font-size:12.5px;color:var(--ink)}
+table{border-collapse:collapse;width:100%;font-size:12px}th,td{text-align:right;padding:3px 6px;border-bottom:1px solid var(--line)}th:first-child,td:first-child{text-align:left}th{color:var(--mut);font-weight:600}
+.note{color:var(--mut);font-size:11.5px;margin-top:10px}
+@media(max-width:900px){.kpis{grid-template-columns:repeat(2,1fr)}.r3,.r2,.r2b{grid-template-columns:1fr}}
+</style></head><body><div class="wrap">
+<header><h1>Monitor de panel solar AR-3302PANEL5V<small>Prototipo con datos simulados · último barrido I-V: <b id="ts"></b> · ESP32 → Wi-Fi → servidor local</small></h1>
+<span id="pill" class="pill"></span></header>
+<div class="grid kpis" id="kpis"></div>
+<div class="grid r2 row">
+ <div class="card"><h2>Curva I-V del último barrido</h2><div class="sub">23 puntos, banco de relés · marcador: punto de máxima potencia</div><div id="c_iv"></div></div>
+ <div class="card"><h2>Curva P-V del último barrido</h2><div class="sub">Potencia entregada según el voltaje de operación</div><div id="c_pv"></div></div>
+</div>
+<div class="grid r3 row">
+ <div class="card"><h2>Potencia máxima hoy</h2><div class="sub">W, un barrido cada 10 min</div><div id="c_p"></div></div>
+ <div class="card"><h2>Irradiancia hoy</h2><div class="sub">W/m² (celda de referencia coplanar)</div><div id="c_g"></div></div>
+ <div class="card"><h2>Temperatura de celda hoy</h2><div class="sub">°C (DS18B20 adherido al panel)</div><div id="c_t"></div></div>
+</div>
+<div class="grid r2b row">
+ <div class="card"><h2>Eficiencia real vs. nominal</h2><div class="sub">η = P / (G·A), A = 0.01035 m²</div><div class="leg"><span><i style="background:var(--a)"></i>η real</span><span><i class="d"></i>η nominal 14.5 %</span></div><div id="c_e"></div></div>
+ <div class="card alert" id="alert"></div>
+</div>
+<div class="grid r2b row">
+ <div class="card"><h2>Histórico: Performance Ratio diario (30 días)</h2><div class="sub">PR corregido por temperatura (IEC 61724-1) · normaliza irradiancia y temperatura</div><div class="leg"><span><i style="background:var(--a)"></i>PR diario</span><span><i class="d"></i>umbral de alerta 0.90</span></div><div id="c_pr"></div></div>
+ <div class="card"><h2>Últimos barridos</h2><div class="sub">Registro CSV (servidor local)</div><div id="tbl"></div></div>
+</div>
+<p class="note">Datos simulados con un modelo de un diodo (Voc 9.2 V, Isc 205 mA a 1000 W/m², −0.35 %/°C), no son mediciones del panel. Irradiancia: celda de referencia asumida calibrada a 1000 W/m². Alerta de mantenimiento: PR &lt; 0.90 durante 3 días seguidos.</p>
+</div><div class="tip" id="tip"></div>
+<script>
+const NS="http://www.w3.org/2000/svg";let seed=7;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647};
+const A=0.01035;
+function model(G,T,deg){const Voc=9.2+0.5*Math.log(Math.max(G,20)/1000)-0.022*(T-25),Isc=0.205*G/1000*(1+0.0006*(T-25))*deg,a=0.5;
+ const I=V=>Math.max(0,Isc*(1-(Math.exp(V/a)-1)/(Math.exp(Voc/a)-1)));return{Voc,Isc,I}}
+function mpp(m){let b={P:0};for(let V=0;V<=m.Voc;V+=0.02){const P=V*m.I(V);if(P>b.P)b={P,V,I:m.I(V)}}return b}
+// día simulado, 9:00–15:00, 10 min, degradación 0.88 (suciedad)
+const deg=0.885,pts=[];
+for(let k=0;k<=36;k++){const h=9+k/6;let G=930*Math.sin(Math.PI*(h-6)/12)**1.2;
+ if(h>10.8&&h<11.3)G*=0.45+0.4*rnd();else if(h>13.6&&h<13.9)G*=0.55;G=Math.max(60,G*(0.97+0.06*rnd()));
+ const T=29+0.026*G+1.2*rnd(),m=model(G,T,deg),b=mpp(m);pts.push({h,G,T,V:b.V,I:b.I,P:b.P,eta:b.P/(G*A)*100,m})}
+const last=pts[pts.length-2],fmt=(x,d=2)=>x.toFixed(d).replace(".",","),hh=h=>`${Math.floor(h)}:${String(Math.round((h%1)*60)).padStart(2,"0")}`;
+document.getElementById("ts").textContent="12 oct 2026 · "+hh(last.h);
+// PR histórico
+const days=[];for(let d=0;d<30;d++){let v=1.0-0.0042*d+0.012*(rnd()-.5);if(d==9)v+=.05;if(d>=9)v=1.0-0.0042*(d)+0.045-0.0016*(d-9)*0+0.01*(rnd()-.5)-0.0;days.push(v)}
+for(let d=0;d<30;d++){days[d]=d<9?1.0-0.0045*d+0.01*(rnd()-.5):0.975-0.0042*(d-9)+0.01*(rnd()-.5)}
+days[29]=0.884;days[28]=0.893;days[27]=0.887;
+let below=0;for(let d=29;d>=0&&days[d]<0.90;d--)below++;
+const alarm=below>=3,prNow=days[29];
+// KPIs
+const K=[["Voltaje (Vmpp)",fmt(last.V),"V","0 – 8.8 V en divisor"],["Corriente (Impp)",fmt(last.I*1000,0),"mA","shunt 1 Ω"],["Potencia",fmt(last.P),"W","nominal 1.5 W"],
+["Temp. de celda",fmt(last.T,1),"°C","DS18B20"],["Irradiancia",fmt(last.G,0),"W/m²","celda de ref."],["Eficiencia",fmt(last.eta,1),"%","nominal 14.5 %"]];
+document.getElementById("kpis").innerHTML=K.map(k=>`<div class="card k"><div class="l">${k[0]}</div><div class="v">${k[1]}<span>${k[2]}</span></div><div class="s">${k[3]}</div></div>`).join("");
+const pill=document.getElementById("pill");pill.className="pill "+(alarm?"crit":"ok");pill.innerHTML=alarm?"▲ Mantenimiento recomendado":"✔ Estado normal";
+const al=document.getElementById("alert");al.className="card alert"+(alarm?"":" ok");
+al.innerHTML=`<h2>${alarm?"▲ Alerta de mantenimiento":"✔ Sin alerta"}</h2><p><b>PR actual:</b> ${fmt(prNow)} · <b>umbral:</b> 0.90</p><p><b>Días seguidos bajo el umbral:</b> ${below} (se requieren 3)</p><p><b>Pérdida frente al estado limpio:</b> ${fmt((1-prNow)*100,1)} %</p><p><b>Diagnóstico probable:</b> pérdida gradual de corriente a irradiancia constante, compatible con suciedad en la superficie; Voc casi intacto.</p><p><b>Acción:</b> limpiar el panel con agua y paño suave y repetir el barrido.</p>`;
+// charts
+const tip=document.getElementById("tip");
+function chart(id,{series,xlab,ylab,xmin,xmax,ymin,ymax,xt,yt,hline,dots,tipf,w=520,h=210,xf=v=>fmt(v,0),yf=v=>fmt(v,0)}){
+ const m={l:44,r:10,t:8,b:30},W=w,H=h,sx=v=>m.l+(v-xmin)/(xmax-xmin)*(W-m.l-m.r),sy=v=>H-m.b-(v-ymin)/(ymax-ymin)*(H-m.t-m.b);
+ let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${ylab} vs ${xlab}">`;
+ yt.forEach(v=>s+=`<line x1="${m.l}" x2="${W-m.r}" y1="${sy(v)}" y2="${sy(v)}" stroke="var(--grid)"/><text x="${m.l-6}" y="${sy(v)+3.5}" text-anchor="end">${yf(v)}</text>`);
+ xt.forEach(v=>s+=`<text x="${sx(v)}" y="${H-m.b+14}" text-anchor="middle">${xf(v)}</text>`);
+ s+=`<line x1="${m.l}" x2="${W-m.r}" y1="${H-m.b}" y2="${H-m.b}" stroke="var(--line)"/>`;
+ s+=`<text x="${(W+m.l)/2}" y="${H-3}" text-anchor="middle">${xlab}</text><text transform="translate(11 ${(H-m.b)/2}) rotate(-90)" text-anchor="middle">${ylab}</text>`;
+ if(hline)s+=`<line x1="${m.l}" x2="${W-m.r}" y1="${sy(hline)}" y2="${sy(hline)}" stroke="var(--b)" stroke-width="2" stroke-dasharray="6 4"/>`;
+ series.forEach(se=>{s+=`<polyline fill="none" stroke="${se.c||"var(--a)"}" stroke-width="2" stroke-linejoin="round" points="${se.d.map(p=>sx(p[0])+","+sy(p[1])).join(" ")}"/>`});
+ (dots||[]).forEach(p=>s+=`<circle cx="${sx(p[0])}" cy="${sy(p[1])}" r="${p[2]||3.5}" fill="${p[3]||"var(--a)"}" stroke="var(--card)" stroke-width="2"/>`);
+ s+=`<line id="${id}_vx" y1="${m.t}" y2="${H-m.b}" stroke="var(--mut)" stroke-dasharray="3 3" style="display:none"/><rect x="${m.l}" y="${m.t}" width="${W-m.l-m.r}" height="${H-m.t-m.b}" fill="transparent" id="${id}_hit"/></svg>`;
+ const el=document.getElementById(id);el.innerHTML=s;const r=el.querySelector("#"+id+"_hit"),vl=el.querySelector("#"+id+"_vx"),d0=series[0].d;
+ r.addEventListener("mousemove",e=>{const bb=r.getBoundingClientRect(),x=xmin+(e.clientX-bb.left)/bb.width*(xmax-xmin);let b=d0[0];d0.forEach(p=>{if(Math.abs(p[0]-x)<Math.abs(b[0]-x))b=p});
+  vl.setAttribute("x1",sx(b[0]));vl.setAttribute("x2",sx(b[0]));vl.style.display="";tip.style.display="block";tip.style.left=e.clientX+12+"px";tip.style.top=e.clientY-28+"px";tip.textContent=tipf(b)});
+ r.addEventListener("mouseleave",()=>{vl.style.display="none";tip.style.display="none"});}
+const mm=last.m,bp=mpp(mm),ivd=[],pvd=[];for(let i=0;i<=22;i++){const V=mm.Voc*i/22;ivd.push([V,mm.I(V)*1000]);pvd.push([V,V*mm.I(V)])}
+chart("c_iv",{series:[{d:ivd}],xlab:"Voltaje (V)",ylab:"Corriente (mA)",xmin:0,xmax:10,ymin:0,ymax:250,xt:[0,2,4,6,8,10],yt:[0,50,100,150,200,250],dots:ivd.map(p=>[p[0],p[1],2.5]).concat([[bp.V,bp.I*1000,6,"var(--b)"]]),tipf:b=>`${fmt(b[0])} V · ${fmt(b[1],0)} mA`});
+chart("c_pv",{series:[{d:pvd}],xlab:"Voltaje (V)",ylab:"Potencia (W)",xmin:0,xmax:10,ymin:0,ymax:1.2,xt:[0,2,4,6,8,10],yt:[0,.3,.6,.9,1.2],yf:v=>fmt(v,1),dots:pvd.map(p=>[p[0],p[1],2.5]).concat([[bp.V,bp.P,6,"var(--b)"]]),tipf:b=>`${fmt(b[0])} V · ${fmt(b[1],3)} W`});
+const xt=[9,10,11,12,13,14,15],xf=v=>v+":00";
+chart("c_p",{series:[{d:pts.map(p=>[p.h,p.P])}],xlab:"Hora local",ylab:"P (W)",xmin:9,xmax:15,ymin:0,ymax:1.5,xt,xf,yt:[0,.5,1,1.5],yf:v=>fmt(v,1),w:380,h:200,tipf:b=>`${hh(b[0])} · ${fmt(b[1],3)} W`});
+chart("c_g",{series:[{d:pts.map(p=>[p.h,p.G])}],xlab:"Hora local",ylab:"G (W/m²)",xmin:9,xmax:15,ymin:0,ymax:1000,xt,xf,yt:[0,250,500,750,1000],w:380,h:200,tipf:b=>`${hh(b[0])} · ${fmt(b[1],0)} W/m²`});
+chart("c_t",{series:[{d:pts.map(p=>[p.h,p.T])}],xlab:"Hora local",ylab:"T celda (°C)",xmin:9,xmax:15,ymin:25,ymax:60,xt,xf,yt:[25,35,45,55],w:380,h:200,tipf:b=>`${hh(b[0])} · ${fmt(b[1],1)} °C`});
+chart("c_e",{series:[{d:pts.map(p=>[p.h,p.eta])}],hline:14.5,xlab:"Hora local",ylab:"Eficiencia (%)",xmin:9,xmax:15,ymin:8,ymax:16,xt,xf,yt:[8,10,12,14,16],w:620,h:230,tipf:b=>`${hh(b[0])} · η real ${fmt(b[1],1)} %`});
+chart("c_pr",{series:[{d:days.map((v,i)=>[i+1,v])}],hline:0.90,xlab:"Día del periodo de monitoreo",ylab:"PR",xmin:1,xmax:30,ymin:0.8,ymax:1.05,xt:[1,5,10,15,20,25,30],yt:[.8,.85,.9,.95,1,1.05],yf:v=>fmt(v,2),w:620,h:230,dots:[[30,days[29],5,"var(--crit)"]],tipf:b=>`Día ${b[0]} · PR ${fmt(b[1],3)}`});
+document.getElementById("tbl").innerHTML="<table><tr><th>Hora</th><th>V (V)</th><th>I (mA)</th><th>P (W)</th><th>G</th><th>T (°C)</th></tr>"+pts.slice(-8).reverse().map(p=>`<tr><td>${hh(p.h)}</td><td>${fmt(p.V)}</td><td>${fmt(p.I*1000,0)}</td><td>${fmt(p.P,3)}</td><td>${fmt(p.G,0)}</td><td>${fmt(p.T,1)}</td></tr>`).join("")+"</table>";
+</script></body></html>

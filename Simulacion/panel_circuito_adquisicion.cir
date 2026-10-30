@@ -1,0 +1,42 @@
+* Sistema de medicion - panel 1.5 W (equivalente de la hoja KiCad)
+IPH 0 PV DC 0.212
+DPV PV 0 DPV
+.model DPV D(IS=3.74e-09 N=19.5)
+R1 PV AD 33k
+R2 AD 0 10k
+R3 AD AIN0 1k
+C1 AIN0 0 0.1u
+RIN AIN0 0 5Meg
+RSH1 SH 0 1
+RINSH SH 0 5Meg
+.model SWR SW(Ron=0.05 Roff=1e9 Vt=0.5 Vh=0.1)
+VC1 C1 0 DC 0
+S1 PV N1 C1 0 SWR
+RL1 N1 SH 2.2
+VC2 C2 0 DC 0
+S2 PV N2 C2 0 SWR
+RL2 N2 SH 4.7
+VC3 C3 0 DC 0
+S3 PV N3 C3 0 SWR
+RL3 N3 SH 10
+VC4 C4 0 DC 0
+S4 PV N4 C4 0 SWR
+RL4 N4 SH 22
+VC5 C5 0 DC 5
+S5 PV N5 C5 0 SWR
+RL5 N5 SH 47
+VC6 C6 0 DC 0
+S6 PV N6 C6 0 SWR
+RL6 N6 SH 100
+VC7 C7 0 DC 5
+S7 PV N7 C7 0 SWR
+RL7 N7 SH 220
+VC8 C8 0 DC 5
+S8 PV N8 C8 0 SWR
+RL8 N8 SH 470
+
+.control
+op
+print v(pv) v(ain0) v(sh)
+.endc
+.end
