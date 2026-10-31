@@ -62,7 +62,8 @@ HUELLAS = {
     'ESP32_DEVKIT38': dict(
         pads=esp32(SEP_ESP32),
         desc='ESP32 DevKitC 38 pines en dos tiras hembra 1x19, filas a %.2f mm (MEDIR la tuya), pads ovalados 1.8x2.7, taladro 0.9' % SEP_ESP32,
-        cuerpo=(-1.25, 6.5, SEP_ESP32 + 1.25, -48.2)),
+        cuerpo=(-1.25, 6.5, SEP_ESP32 + 1.25, -48.2),
+        textos=[('ANTENA', SEP_ESP32 / 2, 3.0, 1.0), ('USB', SEP_ESP32 / 2, -47.72, 1.0)]),
     'SOCKET_1X06': dict(pads=tira(6, 0.9, 1.8),
                         desc='Tira hembra 1x6, paso 2.54, taladro 0.9, pad ovalado 1.8x2.7'),
     'SOCKET_1X10': dict(pads=tira(10, 0.9, 1.8),
@@ -82,7 +83,7 @@ HUELLAS = {
                   desc='Resistencia 1/2 W o 1 W montada vertical, separacion 5.08, taladro 0.9, pad 2.4'),
     'RES_H_T': dict(pads=[('1', 0, 0, 1.3, 3.0, 'square'), ('2', 12.7, 0, 0.9, 2.4, 'round')],
                     desc='Resistencia de carga 1/2 W acostada, separacion 12.7; pad 1 grande: aqui tambien se suelda el cable NO del rele',
-                    cuerpo=(1.9, 1.8, 10.8, -1.8)),
+                    cuerpo=(1.9, 1.8, 10.8, -1.8), textos=[('NO', -0.2, 2.6, 0.8)]),
     'CAP_5MM': dict(pads=[('1', 0, 0, 0.9, 2.4, 'square'), ('2', 5.08, 0, 0.9, 2.4, 'round')],
                     desc='Capacitor poliester, paso 5.08, taladro 0.9, pad 2.4',
                     cuerpo=(-1.6, 1.8, 6.7, -1.8)),

@@ -12,7 +12,7 @@ from shapely.ops import unary_union
 from pcb_geo import HUELLAS
 
 TAM = 1.2          # alto del texto del nombre (mm)
-ANCHO_CAR = 0.8    # ancho aproximado de cada caracter, en alturas
+ANCHO_CAR = 1.0    # ancho de cada caracter en alturas (fuente vectorial de Fusion, con espacio)
 
 
 def caja_texto(x, y, txt, size, align='center', margen=0.25):
@@ -57,6 +57,13 @@ def colocar_nombres(W, H, P, pads, textos, contornos=(), puentes=()):
     from shapely.geometry import LineString
     ocupado += [LineString(pts).buffer(0.8) for pts in puentes]
     ocupado += [caja_texto(x, y, t, s, a) for (x, y, t, s, c, a) in textos]
+    # textos de serigrafia propios de cada huella (ANTENA, USB, NO, +, 1)
+    from pcb_geo import rot_xy
+    for p in P:
+        extra = [('1', -2.3, 0.0, 0.8)] if p.paquete.startswith(('SOCKET', 'MALE')) else []
+        for (txt, tx, ty, ts) in HUELLAS[p.paquete].get('textos', []) + extra:
+            dx, dy = rot_xy(tx, ty, p.rot)
+            ocupado.append(caja_texto(p.x + dx, p.y + dy, txt, ts))
     borde = box(0.8, 0.8, W - 0.8, H - 0.8)
     zona_esp = cuerpos([q for q in P if q.paquete == 'ESP32_DEVKIT38'])
     out = {}
@@ -70,33 +77,32 @@ def colocar_nombres(W, H, P, pads, textos, contornos=(), puentes=()):
             out[p.nombre] = (p.x + dx, p.y + dy, 1.2, 90 if p.rot % 180 else 0)
             continue
         mis = [q for q in pads if q['parte'] == p.nombre]
-        u = unary_union([q['geom'] for q in mis])
+        u = unary_union([q['geom'] for q in mis] + (cuerpos([p]) if p.paquete != 'ESP32_DEVKIT38' else []))
         x0, y0, x1, y1 = u.bounds
         cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
         txt = p.nombre
         mejor = None
-        for size in (TAM, 1.0, 0.8):
-            d = size / 2 + 0.6
-            cands = [(cx, y1 + d), (cx, y0 - d), (x0 - d - len(txt) * size * ANCHO_CAR / 2, cy),
-                     (x1 + d + len(txt) * size * ANCHO_CAR / 2, cy),
-                     (x0, y1 + d), (x1, y1 + d), (x0, y0 - d), (x1, y0 - d)]
-            mitad = len(txt) * size * ANCHO_CAR / 2
-            for k in range(1, 5):  # mas lejos si hace falta
-                cands += [(cx, y1 + d + 1.5 * k), (cx, y0 - d - 1.5 * k),
-                          (x0 - d - mitad - 1.5 * k, cy), (x1 + d + mitad + 1.5 * k, cy),
-                          (x0 - d - mitad - 1.5 * k, y1), (x0 - d - mitad - 1.5 * k, y0)]
-            for (x, y) in cands:
-                c = caja_texto(x, y, txt, size)
-                if not borde.contains(c):
-                    continue
-                if p.paquete != 'ESP32_DEVKIT38' and any(c.intersects(z) for z in zona_esp):
-                    continue  # debajo del ESP32 solo va su propio nombre
-                if any(c.intersects(o) for o in ocupado):
-                    continue
-                mejor = (x, y, size)
-                break
-            if mejor:
-                break
+        intentos = []
+        for k in range(0, 5):  # primero cerca (con cualquier tamano), despues mas lejos
+            for size in (TAM, 1.0, 0.8):
+                d = size / 2 + 0.6 + 1.5 * k
+                mitad = len(txt) * size * ANCHO_CAR / 2
+                for (x, y) in [(cx, y1 + d), (cx, y0 - d), (x0 - d - mitad, cy), (x1 + d + mitad, cy),
+                               (x0 - d - mitad, y1), (x0 - d - mitad, y0), (x1 + d + mitad, y1),
+                               (x1 + d + mitad, y0)]:
+                    intentos.append((x, y, size))
+        if p.paquete == 'WIREPAD':  # COMk: justo debajo de su pad
+            intentos = [(cx, y0 - 1.05, 0.9), (cx, y0 - 0.95, 0.8)] + intentos
+        for (x, y, size) in intentos:
+            c = caja_texto(x, y, txt, size)
+            if not borde.contains(c):
+                continue
+            if p.paquete != 'ESP32_DEVKIT38' and any(c.intersects(z) for z in zona_esp):
+                continue  # debajo del ESP32 solo va su propio nombre
+            if any(c.intersects(o) for o in ocupado):
+                continue
+            mejor = (x, y, size)
+            break
         if mejor is None:  # sin lugar libre: encima de la pieza, chico
             mejor = (cx, cy, 0.8)
             print('  aviso: el nombre %s queda encima de la pieza' % txt)
