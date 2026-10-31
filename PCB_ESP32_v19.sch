@@ -6,7 +6,7 @@
 <setting alwaysvectorfont="no" />
 <setting verticaltext="up" />
 </settings>
-<grid distance="0.1" unitdist="inch" unit="inch" style="lines" multiple="1" display="no" altdistance="0.01" altunitdist="inch" altunit="inch" />
+<grid distance="100" unitdist="mil" unit="mil" style="lines" multiple="1" display="no" altdistance="50" altunitdist="mil" altunit="mil" />
 <layers>
 <layer number="1" name="Top" color="4" fill="1" visible="no" active="no" />
 <layer number="16" name="Bottom" color="1" fill="1" visible="no" active="no" />
@@ -847,7 +847,12 @@
 <variantdefs>
 </variantdefs>
 <classes>
-<class number="0" name="default" width="0.8" drill="0">
+<class number="0" name="SIGNAL" width="0.254" drill="0.381">
+<clearance class="0" value="0.254" />
+</class>
+<class number="1" name="POWER" width="0.381" drill="0.508">
+<clearance class="0" value="0.3048" />
+<clearance class="1" value="0.3048" />
 </class>
 </classes>
 <parts>
@@ -936,7 +941,7 @@
 <busses>
 </busses>
 <nets>
-<net name="3V3" class="2">
+<net name="3V3" class="1">
 <segment>
 <pinref part="U1" gate="G$1" pin="3V3" />
 <wire x1="57.46" y1="266" x2="52.38" y2="266" width="0.1524" layer="91" />
@@ -973,7 +978,7 @@
 <label x="272.38" y="253.3" size="1.778" layer="95" rot="R180" />
 </segment>
 </net>
-<net name="5V" class="2">
+<net name="5V" class="1">
 <segment>
 <pinref part="U1" gate="G$1" pin="5V" />
 <wire x1="57.46" y1="220.28" x2="52.38" y2="220.28" width="0.1524" layer="91" />
@@ -995,7 +1000,7 @@
 <label x="382.3" y="140" size="1.778" layer="95" rot="R180" />
 </segment>
 </net>
-<net name="GND" class="2">
+<net name="GND" class="1">
 <segment>
 <pinref part="U1" gate="G$1" pin="GND@1" />
 <wire x1="57.46" y1="232.98" x2="52.38" y2="232.98" width="0.1524" layer="91" />

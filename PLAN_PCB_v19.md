@@ -6,9 +6,10 @@ La v19 se generó a partir de la v10 (la última sin errores) con un script (`he
 |---|---|---|---|
 | Errores de DRC en Fusion | 0 (con reglas de 0.5 mm) | 9 | **0 en el DRC propio** (falta confirmarlo en Fusion) |
 | Puentes de cable | 3 | 5 | **1** (3V3) |
-| Separación entre pistas / pista-pad | 0.5 mm | 0.5 mm | **1.0 mm** |
-| Relleno GND a cualquier otra cosa | 0.8 mm | 0.8 mm | **1.3 mm** |
-| Tamaño | 105.4 × 58.4 mm | 105.4 × 60.3 mm | **102.9 × 67.3 mm** |
+| Separación entre pistas / pista-pad | 0.5 mm | 0.5 mm | **40 mil (1.02 mm)** |
+| Relleno GND a cualquier otra cosa (ISOLATE) | 0.8 mm | 0.8 mm | **50 mil (1.27 mm)** |
+| Quiebres de pista | 90° | 90° | **solo 45°** |
+| Tamaño | 105.4 × 58.4 mm | 105.4 × 60.3 mm | **104.8 × 67.3 mm** |
 
 ## 1. Por qué fallaban las versiones v11–v18
 
@@ -21,7 +22,11 @@ La v19 se generó a partir de la v10 (la última sin errores) con un script (`he
 ## 2. Plan aplicado (punto por punto)
 
 1. **Tiras hembra.** El ESP32 queda con dos filas de 19 pines y 25.40 mm entre filas, configurable en el script (ver sección 6). El ADS1115, el RTC y la microSD también van en tira hembra.
-2. **Separaciones.** Las reglas quedan dentro del archivo: pista-pista 1.0 mm, pista-pad 1.0 mm, relleno 1.3 mm, cobre al borde 1.5 mm y ancho mínimo 0.8 mm. **Ninguna pista pasa entre dos pines de 2.54 mm.** El relleno no deja tiras de cobre de menos de 0.8 mm.
+2. **Separaciones (todo en mil, L-07).** Las reglas quedan dentro del archivo: pista-pista y pista-pad 40 mil, pad-pad 20 mil, cobre al borde 60 mil, ISOLATE del relleno 50 mil. **Ninguna pista pasa entre dos pines de 100 mil.** El relleno no deja tiras de cobre de menos de 32 mil.
+   * Clases de red del curso: **SIGNAL** (10 mil / 10 mil / 15 mil) y **POWER** (15 mil / 12 mil / 20 mil). 3V3, 5V, GND, PV y LB están en POWER. Los anchos reales son mayores: señales 32 mil, 3V3/5V/GND 40 mil, PV/LB 60 mil.
+   * **Quiebres solo a 45°**, con tramos diagonales de al menos 50 mil: no hay ningún ángulo de 90° en el cobre. El script lo revisa.
+   * Relleno con **Thermals encendido** (alivio térmico de 20 mil) y **Orphans apagado**, como pide el manual.
+   * Al menos **100 mil** entre cualquier componente y el borde (salvo la antena del ESP32, ver sección 5).
 3. **Taladros y anillos.**
    * Tiras (ESP32, módulos, conectores): pad **ovalado 1.8 × 2.7 mm**, con más cobre para soldar sin achicar el hueco entre pines. Taladro de 0.9 mm (1.0 en las tiras macho).
    * Resistencias de señal: pad de 2.4 mm, taladro de 0.9 mm, separación de **5.08 mm**. Aquí caben las de 1 W de las derivaciones.
@@ -66,11 +71,24 @@ Otros cambios respecto de la v10:
 
 ## 5. Fabricación y armado
 
-* **Para planchar:** usá `PCB_ESP32_v19_cobre_1a1.pdf`. Imprimí al 100 %, **sin espejar**, y comprobá que la regla mida 50 mm. Si imprimís desde Fusion, sacá solo las capas Bottom, Pads y Dimension. **No imprimas la capa Top**: es el puente.
+**Para imprimir no hace falta tocar capas.** En la carpeta `imprimir/` hay dos archivos que ya abren con solo las capas necesarias:
+
+| Archivo | Capas visibles | Cómo imprimir |
+|---|---|---|
+| `PCB_ESP32_v19_IMPRIMIR_COBRE.brd` | Bottom, Pads, Vias, Dimension | **Sin espejo**, negro, sólido, escala 1 |
+| `PCB_ESP32_v19_IMPRIMIR_SERIGRAFIA_espejada.brd` | Dimension, tPlace, tNames | **Sin espejo** (el dibujo ya viene espejado), negro, escala 1 |
+
+Si no querés imprimir desde Fusion, los PDF hacen lo mismo:
+* `PCB_ESP32_v19_cobre_1a1.pdf`: el cobre.
+* `PCB_ESP32_v19_componentes_1a1.pdf`: la hoja 1 es la guía de montaje y la hoja 2 la serigrafía espejada.
+
+Imprimí siempre al 100 % y comprobá que el contorno mida 104.8 × 67.3 mm.
+
 * **Antes de imprimir, medí tu DevKit:** distancia de centro a centro entre las dos filas de pines. Si no es 25.40 mm, mirá la sección 6.
 * **Puente JP1:** un cable aislado del lado de los componentes, de JP1A a JP1B, siguiendo la línea de la serigrafía. Se suelda por abajo como cualquier componente.
-* **Cargas:** el cable NO del relé k va al pad grande "NO" de RLk, y el cable COM del relé k va al pad Ck (abajo).
-* **Altura bajo los módulos:** bajo el ADS1115 (rectángulo punteado) no hay componentes, solo pistas. El RTC y la microSD se suponen parados, con los pines en L de fábrica. Si los tuyos vienen con pines rectos, avisame y reubico su cuerpo.
+* **Cargas:** el cable NO del relé k va al pad grande "NO" de RLk, y el cable COM del relé k va al pad COMk (abajo).
+* **Antena del ESP32:** sobresale unos 1.4 mm del borde superior a propósito. Es la recomendación de Espressif: no debe haber cobre debajo de la antena. Es la única excepción a los 100 mil de margen.
+* **Altura bajo los módulos:** bajo el ADS1115 (rectángulo punteado) no hay componentes, solo pistas. El RTC y la microSD se suponen parados, con los pines en L de fábrica.
 
 ## 6. Cómo regenerarla (si cambia algo)
 

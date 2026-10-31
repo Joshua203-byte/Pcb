@@ -23,7 +23,7 @@ import enrutar_v19 as E                     # noqa: E402
 import pcb_drc as R                         # noqa: E402
 import vista                                # noqa: E402
 import serigrafia                           # noqa: E402
-from pcb_geo import HUELLAS, REGLAS, ancho  # noqa: E402
+from pcb_geo import HUELLAS, REGLAS, POWER, ancho, mil  # noqa: E402
 
 BASE_BRD = os.path.join(RAIZ, 'PCB_ESP32_v10.brd')
 BASE_SCH = os.path.join(RAIZ, 'PCB_ESP32_v10.sch')
@@ -154,7 +154,7 @@ def textos_serigrafia(P, pads):
                 gpio_pad[pd] = n
     for pd, n in gpio_pad.items():
         p = pp[('U1', pd)]
-        izq = p['x'] < D.XL + 1
+        izq = p['x'] < D.XL + D.DX + 1
         T.append((p['x'] + (1.9 if izq else -1.9), p['y'], n, 0.7, '21',
                   'center-left' if izq else 'center-right'))
     a = pp[('JP1A', '1')]
@@ -171,6 +171,37 @@ def contornos_docu(P):
     rtc = (u5.x - 5.0, u5.y - 12.7 - 2.5, u5.x + 5.0, u5.y + 2.5, 'RTC parado (pines en L)')
     sd = (u4.x - 5.0, u4.y - 12.7 - 1.5, u4.x + 5.0, u4.y + 2.5, 'microSD parada')
     return [ads, rtc, sd]
+
+
+
+# ------------------------------------------------------------------ clases, rejilla y capas
+CAPAS_EDICION = {1, 16, 17, 18, 19, 20, 21, 23, 25, 51}
+CAPAS_COBRE = {16, 17, 18, 20}          # imprimir sin espejo: cara de cobre
+CAPAS_SERIGRAFIA = {20, 21, 25}         # el archivo de serigrafia ya viene espejado
+
+
+def poner_clases(cl):
+    """Clases del curso: SIGNAL 10 mil / 10 mil / 15 mil y POWER 15 mil / 12 mil / 20 mil."""
+    for c in list(cl):
+        cl.remove(c)
+    s = el('class', number='0', name='SIGNAL', width=mil(10), drill=mil(15))
+    s.append(el('clearance', class_='0', value=mil(10)))
+    p = el('class', number='1', name='POWER', width=mil(15), drill=mil(20))
+    p.append(el('clearance', class_='0', value=mil(12)))
+    p.append(el('clearance', class_='1', value=mil(12)))
+    cl.append(s)
+    cl.append(p)
+
+
+def poner_rejilla(gr, paso, alterno):
+    for k, v in dict(distance=str(paso), unitdist='mil', unit='mil', altdistance=str(alterno),
+                     altunitdist='mil', altunit='mil').items():
+        gr.set(k, v)
+
+
+def poner_capas(root, visibles):
+    for ly in root.find('drawing/layers'):
+        ly.set('visible', 'yes' if int(ly.get('number')) in visibles else 'no')
 
 
 # ------------------------------------------------------------------ .brd
@@ -199,23 +230,20 @@ def escribir_brd(st, tr, top, archivo):
         plain.append(el('wire', x1=pts[0][0], y1=pts[0][1], x2=pts[1][0], y2=pts[1][1], width=0.3, layer='21'))
     # libreria
     reemplazar_paquetes(b.find('libraries/library'))
-    # reglas
+    # reglas (en mil, lineamiento L-07)
     dr = b.find('designrules')
-    dr.set('name', 'PBL v19 (planchado / percloruro)')
-    nuevos = {'mdWireWire': '1mm', 'mdWirePad': '1mm', 'mdWireVia': '1mm', 'mdPadPad': '0.5mm',
-              'mdPadVia': '0.5mm', 'mdViaVia': '0.5mm', 'mdCopperDimension': '%gmm' % REGLAS['cobre_borde'],
-              'msWidth': '0.8mm', 'psElongationLong': str(REGLAS['elong_long']),
+    dr.set('name', 'PBL v19 (mil, planchado / percloruro)')
+    nuevos = {'mdWireWire': '40mil', 'mdWirePad': '40mil', 'mdWireVia': '40mil', 'mdPadPad': '20mil',
+              'mdPadVia': '20mil', 'mdViaVia': '20mil', 'mdCopperDimension': '60mil', 'mdDrill': '6mil',
+              'msWidth': '10mil', 'msDrill': '15mil', 'slThermalIsolate': '20mil',
+              'psElongationLong': str(REGLAS['elong_long']),
               'psElongationOffset': str(REGLAS['elong_long']), 'layerSetup': '(1*16)'}
     for prm in dr.findall('param'):
         if prm.get('name') in nuevos:
             prm.set('value', nuevos[prm.get('name')])
-    # clases: ancho minimo 0.8; separacion 0 = usar las reglas de diseno (pad-pad 0.5, pista 1.0)
-    cl = b.find('classes')
-    for c in cl:
-        c.set('width', '0.8')
-        for cc in c:
-            cc.set('value', '0')
-    clase = {'PV': '1', 'LB': '1', '5V': '2', '3V3': '2', 'GND': '2'}
+    poner_clases(b.find('classes'))
+    poner_rejilla(root.find('drawing/grid'), 25, 5)
+    poner_capas(root, CAPAS_EDICION)
     # elementos
     els = b.find('elements')
     for c in list(els):
@@ -234,7 +262,7 @@ def escribir_brd(st, tr, top, archivo):
     for c in list(sig):
         sig.remove(c)
     for net, lst in D.REDES.items():
-        s = el('signal', name=net, class_=clase.get(net, '0'))
+        s = el('signal', name=net, class_='1' if net in POWER else '0')
         for (e, pd) in lst:
             s.append(el('contactref', element=e, pad=pd))
         for (pts, w) in tr.get(net, []):
@@ -245,7 +273,7 @@ def escribir_brd(st, tr, top, archivo):
                 s.append(el('wire', x1=pts[0][0], y1=pts[0][1], x2=pts[1][0], y2=pts[1][1], width=w, layer='1'))
         if net == 'GND':
             pg = el('polygon', width=REGLAS['ancho_relleno'], layer='16', isolate=REGLAS['aislamiento_gnd'],
-                    pour='solid', orphans='no', thermals='no', rank='1')
+                    pour='solid', orphans='no', thermals='yes', rank='1')
             m = 0.5
             for (x, y) in [(m, m), (W - m, m), (W - m, H - m), (m, H - m)]:
                 pg.append(el('vertex', x=x, y=y))
@@ -340,18 +368,14 @@ def escribir_sch(st, archivo):
         sg.append(lb)
         return sg
 
-    clase = {'PV': '1', 'LB': '1', '5V': '2', '3V3': '2', 'GND': '2'}
     for net, lst in D.REDES.items():
-        nn = el('net', name=net, class_=clase.get(net, '0'))
+        nn = el('net', name=net, class_='1' if net in POWER else '0')
         for (parte, pad) in lst:
             pin = pin_de[ds_de[parte]][pad]
             nn.append(segmento(parte, pin))
         nets.append(nn)
-    # clases como en la placa
-    for c in s.find('classes'):
-        c.set('width', '0.8')
-        for cc in c:
-            cc.set('value', '0')
+    poner_clases(s.find('classes'))
+    poner_rejilla(root.find('drawing/grid'), 100, 50)
     for t in sheet.find('plain').iter('text'):
         if t.text and t.text.startswith('PBL Semiconductores'):
             t.text = 'PBL Semiconductores EE2002 - Monitor I-V de panel 1.5 W (ESP32 DevKitC) - v19'
@@ -394,6 +418,91 @@ def revisar_archivos(brd, sch):
     return err
 
 
+# ------------------------------------------------------------------ archivos para imprimir
+def escribir_impresion(brd_principal, sch_principal, st, top, carpeta):
+    """Dos archivos listos para imprimir sin tocar capas:
+    COBRE: la placa con solo Bottom, Pads, Vias y Dimension visibles (imprimir SIN espejo).
+    SERIGRAFIA: dibujo ya espejado de contornos, nombres y etiquetas (imprimir SIN espejo).
+    """
+    import math
+    import shutil
+    from pcb_geo import rot_xy
+    os.makedirs(carpeta, exist_ok=True)
+    # 1) cobre
+    tree = ET.parse(brd_principal)
+    poner_capas(tree.getroot(), CAPAS_COBRE)
+    base = os.path.join(carpeta, 'PCB_ESP32_v19_IMPRIMIR_COBRE')
+    ET.indent(tree.getroot(), space='')
+    with open(base + '.brd', 'w', encoding='utf-8') as fh:
+        fh.write(CABECERA + ET.tostring(tree.getroot(), encoding='unicode'))
+    shutil.copy(sch_principal, base + '.sch')
+    # 2) serigrafia espejada (solo dibujo, sin piezas ni senales)
+    tree = ET.parse(brd_principal)
+    root = tree.getroot()
+    b = root.find('drawing/board')
+    W = D.W
+
+    def mx(x):
+        return W - x
+
+    def rot_espejo(r):
+        return 'MR%d' % ((360 - r) % 360)
+
+    plain = b.find('plain')
+    for c in list(plain):
+        plain.remove(c)
+    H = D.H
+    for a, c in [((0, 0), (W, 0)), ((W, 0), (W, H)), ((W, H), (0, H)), ((0, H), (0, 0))]:
+        plain.append(el('wire', x1=a[0], y1=a[1], x2=c[0], y2=c[1], width=0, layer='20'))
+    for p in st.P:  # serigrafia de cada huella, transformada y espejada
+        pk = paquete_xml(p.paquete)
+        for w in pk.findall('wire'):
+            if w.get('layer') != '21':
+                continue
+            a = rot_xy(float(w.get('x1')), float(w.get('y1')), p.rot)
+            c = rot_xy(float(w.get('x2')), float(w.get('y2')), p.rot)
+            plain.append(el('wire', x1=mx(p.x + a[0]), y1=p.y + a[1], x2=mx(p.x + c[0]), y2=p.y + c[1],
+                            width=float(w.get('width')), layer='21'))
+        for ci in pk.findall('circle'):
+            if ci.get('layer') != '21':
+                continue
+            a = rot_xy(float(ci.get('x')), float(ci.get('y')), p.rot)
+            plain.append(el('circle', x=mx(p.x + a[0]), y=p.y + a[1], radius=float(ci.get('radius')),
+                            width=float(ci.get('width')), layer='21'))
+        for t in pk.findall('text'):
+            if t.get('layer') != '21':
+                continue
+            a = rot_xy(float(t.get('x')), float(t.get('y')), p.rot)
+            nt = el('text', x=mx(p.x + a[0]), y=p.y + a[1], size=float(t.get('size')), layer='21',
+                    rot=rot_espejo(p.rot % 360))
+            if t.get('align'):
+                nt.set('align', t.get('align'))
+            nt.text = t.text
+            plain.append(nt)
+    for q in st.pads:  # marca de cada agujero para alinear con la placa ya taladrada
+        plain.append(el('circle', x=mx(q['x']), y=q['y'], radius=q['drill'] / 2 + 0.35, width=0.15, layer='21'))
+    for (x, y, txt, size, capa, align) in textos_serigrafia(st.P, st.pads):
+        t = el('text', x=mx(x), y=y, size=size, layer='21', align=align, rot='MR0')
+        t.text = txt
+        plain.append(t)
+    nombres = serigrafia.colocar_nombres(D.W, D.H, st.P, st.pads, textos_serigrafia(st.P, st.pads),
+                                         contornos_docu(st.P), [t[0] for t in top])
+    for n, (x, y, s, r) in nombres.items():
+        t = el('text', x=mx(x), y=y, size=s, layer='25', align='center', rot=rot_espejo(r))
+        t.text = n
+        plain.append(t)
+    for (pts, w, net) in top:
+        plain.append(el('wire', x1=mx(pts[0][0]), y1=pts[0][1], x2=mx(pts[1][0]), y2=pts[1][1],
+                        width=0.6, layer='21'))
+    for tag in ('elements', 'signals'):
+        for c in list(b.find(tag)):
+            b.find(tag).remove(c)
+    poner_capas(root, CAPAS_SERIGRAFIA)
+    ET.indent(root, space='')
+    with open(os.path.join(carpeta, 'PCB_ESP32_v19_IMPRIMIR_SERIGRAFIA_espejada.brd'), 'w', encoding='utf-8') as fh:
+        fh.write(CABECERA + ET.tostring(root, encoding='unicode'))
+
+
 def extremos(st, tr):
     """En EAGLE una pista conecta por sus extremos: cada extremo debe caer en el centro
     de un pad de su red o sobre un vertice de otra pista de la misma red."""
@@ -428,6 +537,8 @@ def main():
     escribir_brd(st, tr, top, SALIDA + '.brd')
     escribir_sch(st, SALIDA + '.sch')
     errores += revisar_archivos(SALIDA + '.brd', SALIDA + '.sch')
+    errores += R.angulos(tr)
+    escribir_impresion(SALIDA + '.brd', SALIDA + '.sch', st, top, os.path.join(RAIZ, 'imprimir'))
     vista.dibujar(D.W, D.H, st.P, st.pads, tr, ancho, SALIDA + '_vista.png', relleno=rel,
                   puentes=[t[0] for t in top], cuerpos=contornos_docu(st.P),
                   titulo='PCB v19 - cara inferior vista desde arriba - %d puente(s) - %.1f x %.1f mm'

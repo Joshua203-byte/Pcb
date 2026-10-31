@@ -11,20 +11,28 @@ from shapely.geometry import Point, LineString, box, Polygon
 from shapely import affinity
 
 # ---------------------------------------------------------------- reglas
+def mil(v):
+    """Milesimas de pulgada a mm (todo el diseno se define en mil, lineamiento L-07)."""
+    return round(v * 0.0254, 4)
+
+
 REGLAS = dict(
-    pista_pista=1.0,      # separacion minima entre pistas
-    pista_pad=1.0,        # separacion minima pista-pad
-    pad_pad=0.5,          # pads de una misma tira (2.54 mm) quedan a ~0.7
-    cobre_borde=1.5,      # cobre al borde de la placa
-    aislamiento_gnd=1.3,  # relleno GND a cualquier otra cosa
-    ancho_relleno=0.8,    # el relleno no deja tiras mas finas que esto
-    elong_long=50,        # pads ovalados de tiras: 1.8 x 2.7 mm
+    pista_pista=mil(40),      # separacion entre pistas (mas que el minimo del curso: planchado)
+    pista_pad=mil(40),        # separacion pista-pad
+    pad_pad=mil(20),          # pads de una misma tira (100 mil) quedan a ~29 mil
+    cobre_borde=mil(60),      # cobre al borde de la placa (curso: minimo 40 mil)
+    aislamiento_gnd=mil(50),  # ISOLATE del poligono (curso: 40 mil o mas)
+    ancho_relleno=mil(32),    # ancho de linea del relleno y de los brazos de alivio termico
+    alivio_termico=mil(20),   # hueco entre pad GND y relleno en el alivio termico
+    elong_long=50,            # pads ovalados de tiras: 1.8 x 2.7 mm
 )
 
+# clases de red del curso: SIGNAL 10 mil, POWER 15 mil (anchos minimos); los anchos usados son mayores
 ANCHO = {  # ancho de pista por red
-    'PV': 1.5, 'LB': 1.5, '5V': 1.0, 'GND': 1.0, '3V3': 1.0,
+    'PV': mil(60), 'LB': mil(60), '5V': mil(40), 'GND': mil(40), '3V3': mil(40),
 }
-ANCHO_DEF = 0.8
+ANCHO_DEF = mil(32)
+POWER = ('3V3', '5V', 'GND', 'PV', 'LB')
 
 
 def ancho(net):

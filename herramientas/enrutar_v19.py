@@ -12,6 +12,8 @@ CLR = max(REGLAS['pista_pista'], REGLAS['pista_pad'])
 
 def preparar():
     P = D.partes()
+    for p in P:  # la colocacion se escribe sin el corrimiento DX; aqui se aplica
+        p.x = round(p.x + D.DX, 4)
     pads = []
     for p in P:
         pads += p.pads()
@@ -83,14 +85,19 @@ class Estado:
             wp = via.get('puntos', {}).get(pend[0]) if len(pend) == 1 else None
             srcs = set(celdas_arbol)
             cam = []
+            inicio = None
             for punto in (wp or []) + [None]:
-                dst = destinos if punto is None else {self.R.idx(*punto)}
-                tramo = self.R.astar(bloq, srcs, dst)
+                dst = destinos if punto is None else {self.R.idx(punto[0] + D.DX, punto[1])}
+                if punto is not None and bloq[next(iter(dst))]:
+                    print('  punto de paso bloqueado en %s: %s' % (net, punto))
+                    return False
+                tramo = self.R.astar(bloq, srcs, dst, inicio=inicio)
                 if tramo is None:
                     print('  FALLA %s hacia %s (punto %s)' % (net, pend, punto))
                     return False
                 cam = tramo if not cam else cam + tramo[1:]
                 srcs = {tramo[-1]}
+                inicio = self.R.ultimo_estado
             juntas.add(cam[0])
             caminos.append((cam, w))
             celdas_arbol |= set(cam)
@@ -134,8 +141,11 @@ def unir_gnd(E, max_iter=8):
                                                      if p['parte'] + '.' + p['pad'] in principal)])
         w = ancho('GND')
         bloq = E.R.bloqueo(E.cobre_ajeno('GND'), w, CLR)
-        dentro = shapely.contains_xy(zona.buffer(-0.2), E.R.X, E.R.Y) & ~bloq
-        destinos = set(zip(*np.nonzero(dentro)))
+        # destino: centro de un pad GND (o vertice de pista GND) del grupo principal, asi la pista
+        # termina en algo conectado (sin extremos sueltos dentro del relleno)
+        destinos = {E.R.idx(p['x'], p['y']) for p in E.pads if p['parte'] + '.' + p['pad'] in principal}
+        for c, _w in E.trazas.get('GND', []):
+            destinos |= set(c)
         isla = grupos[1]
         fuentes = {E.R.idx(p['x'], p['y']) for p in E.pads if p['parte'] + '.' + p['pad'] in isla}
         cam = E.R.astar(bloq, fuentes, destinos)

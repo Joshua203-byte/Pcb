@@ -41,66 +41,80 @@ class Router:
         m |= (self.X < lim) | (self.Y < lim) | (self.X > self.W - lim) | (self.Y > self.H - lim)
         return m
 
-    def astar(self, bloq, fuentes, destinos, coste_extra=None):
-        """fuentes, destinos: conjuntos de celdas (i, j)."""
+    RUN_MIN = 4   # celdas rectas minimas despues de un quiebre (tramos a 45 grados visibles)
+
+    def astar(self, bloq, fuentes, destinos, coste_extra=None, inicio=None):
+        """A* con quiebres de 45 grados solamente (nunca 90) y tramos minimos entre quiebres.
+
+        fuentes, destinos: conjuntos de celdas (i, j). inicio: (dir, recorrido) con el que
+        se sigue un tramo anterior (para no quebrar a 90 grados en un punto de paso).
+        Devuelve la lista de celdas; self.ultimo_estado guarda (dir, recorrido) al llegar.
+        """
         if not destinos:
             return None
         dl = list(destinos)
         dx = np.array([d[0] for d in dl])
         dy = np.array([d[1] for d in dl])
+        cache = {}
 
         def h(i, j):
-            ddx = np.abs(dx - i)
-            ddy = np.abs(dy - j)
-            v = np.max(ddx, ) if False else None
-            mn = np.minimum(ddx, ddy)
-            mx = np.maximum(ddx, ddy)
-            return float(np.min(mx - mn + 1.4142 * mn))
+            v = cache.get((i, j))
+            if v is None:
+                ddx = np.abs(dx - i)
+                ddy = np.abs(dy - j)
+                mn = np.minimum(ddx, ddy)
+                mx = np.maximum(ddx, ddy)
+                v = float(np.min(mx - mn + 1.4142 * mn))
+                cache[(i, j)] = v
+            return v
 
-        # heuristica rapida: distancia al destino mas cercano (octil)
+        K = self.RUN_MIN
         abiertos = []
         g = {}
         padre = {}
+        d_ini, r_ini = inicio if inicio else (-1, K)
         for s in fuentes:
-            st = (s[0], s[1], -1)
+            st = (s[0], s[1], d_ini, r_ini)
             g[st] = 0.0
             heapq.heappush(abiertos, (h(*s), 0.0, st))
         destset = set(destinos)
-        TURN = 0.6
+        TURN = 0.4
         n = 0
         while abiertos:
             f, gc, st = heapq.heappop(abiertos)
             if gc > g.get(st, 1e18):
                 continue
-            i, j, d0 = st
+            i, j, d0, r0 = st
             if (i, j) in destset:
+                self.ultimo_estado = (d0, r0)
                 camino = [(i, j)]
                 while st in padre:
                     st = padre[st]
                     camino.append((st[0], st[1]))
                 return camino[::-1]
             n += 1
-            if n > 600000:
+            if n > 4000000:
                 return None
             for k, (di, dj) in enumerate(DIRS):
+                if d0 >= 0 and k != d0:
+                    dd = min((k - d0) % 8, (d0 - k) % 8)
+                    if dd != 1 or r0 < K:
+                        continue  # solo 45 grados, y solo tras un tramo recto minimo
                 ni, nj = i + di, j + dj
                 if ni < 0 or nj < 0 or ni >= self.nx or nj >= self.ny:
                     continue
                 if bloq[ni, nj] and (ni, nj) not in destset:
                     continue
-                if di and dj:  # diagonal: no cortar esquinas bloqueadas
-                    if bloq[i + di, j] and bloq[i, j + dj]:
-                        continue
+                if di and dj and bloq[i + di, j] and bloq[i, j + dj]:
+                    continue
                 c = 1.4142 if (di and dj) else 1.0
-                if d0 >= 0 and d0 != k:
-                    dd = min((k - d0) % 8, (d0 - k) % 8)
-                    if dd > 2:
-                        continue  # nada de giros de mas de 90 grados
-                    c += TURN * dd
+                if d0 >= 0 and k != d0:
+                    c += TURN
                 if coste_extra is not None:
                     c += coste_extra[ni, nj]
+                r = min(r0 + 1, K) if k == d0 else 1
                 ng = gc + c
-                nst = (ni, nj, k)
+                nst = (ni, nj, k, r)
                 if ng < g.get(nst, 1e18):
                     g[nst] = ng
                     padre[nst] = st

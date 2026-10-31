@@ -1,11 +1,14 @@
 """Colocacion, lista de redes y orden de enrutado de la PCB v19."""
-from pcb_geo import Parte, SEP_ESP32
+from pcb_geo import Parte, SEP_ESP32, mil
+
+MIL32, MIL60 = mil(32), mil(60)
 
 Y1 = 62.23                    # fila del pin 1 del ESP32 (antena sobresale arriba)
 XL = 55.88                    # columna izquierda del ESP32
 XR = XL + SEP_ESP32           # columna derecha (depende de la DevKit: 25.40 o 22.86)
 XH = XR + 15.24               # columna de microSD y tiras de reles
-W, H = XH + 6.35, 67.31       # tamano de placa (mm)
+DX = 6 * 0.3175               # corrimiento de todo hacia la derecha: 100 mil libres al borde izquierdo
+W, H = XH + 6.35 + DX, 67.31  # tamano de placa (mm)
 XA = 22.86                    # ADS1115
 XRTC = 48.26                  # RTC DS3231
 
@@ -106,19 +109,25 @@ SX = {n: rj(XR + 2.857 + i * PASO) for i, n in enumerate(ORDEN_BAJO)}
 DEST = {'IN3': 'J2.3', 'IN4': 'J6.1', 'IN5': 'J6.2', 'IN6': 'J6.3', 'IN7': 'J7.1', 'IN8': 'J7.2'}
 FILA_ESP = {'IN3': 5, 'IN4': 2, 'IN5': 1, 'IN6': 8, 'IN7': 9, 'IN8': 10}
 FILA_J = {'IN3': 13, 'IN4': 14, 'IN5': 15, 'IN6': 16, 'IN7': 17, 'IN8': 18}
-Y5V = rj(BY['IN8'] - PASO)
+Y5V = rj(BY['IN8'] - 2.2)   # 5V (40 mil) por debajo de todo, a 40 mil de IN8
 
 VIAS = {
     '3V3': {'grupos': [['U1.1', 'U2.1', 'JP1A.1'], ['JP1B.1', 'U5.5', 'R4.1', 'J3.1']]},
     '5V': {'desde': 'U1.19', 'orden': ['C4.1', 'J5.1', 'U4.2'],
-           'puntos': {'U4.2': [(XL, Y5V), (XH + 3.175, Y5V), (XH + 3.175, fila(6))]}},
+           'puntos': {'U4.2': [(rj((XL + XH) / 2), Y5V), (XH + 3.175, rj((Y5V + fila(6)) / 2)),
+                               (XH + 3.175, rj(fila(6) - 1.27))]}},
     # LB: del ADS a la derivacion solo sensa (fina); la corriente de carga va gruesa
-    'LB': {'grupos': [{'pads': ['U2.9', 'R_SH1.2'], 'ancho': 0.8},
-                      {'pads': ['R_SH1.2'] + ['RL%d.2' % k for k in range(1, 9)], 'ancho': 1.5}]},
-    'PV': {'grupos': [{'pads': ['J1.1'] + ['COM%d.1' % k for k in range(1, 9)], 'ancho': 1.5},
-                      {'pads': ['J1.1', 'R1.1'], 'ancho': 0.8}]},
+    'LB': {'grupos': [{'pads': ['U2.9', 'R_SH1.2'], 'ancho': MIL32},
+                      {'pads': ['R_SH1.2'] + ['RL%d.2' % k for k in range(1, 9)], 'ancho': MIL60}]},
+    'PV': {'grupos': [{'pads': ['J1.1'] + ['COM%d.1' % k for k in range(1, 9)], 'ancho': MIL60},
+                      {'pads': ['J1.1', 'R1.1'], 'ancho': MIL32}]},
 }
 for n in CX:
-    VIAS[n] = {'puntos': {DEST[n]: [(CX[n], fila(FILA_ESP[n])), (CX[n], BY[n]), (SX[n], BY[n]),
-                                    (SX[n], fila(FILA_J[n]))]}}
+    # puntos a mitad de cada tramo recto: las esquinas las resuelve el enrutador con quiebres a 45
+    lado = -1 if n in ('IN6', 'IN7', 'IN8') else 1   # sale del ESP hacia la derecha (-) o izquierda (+)
+    VIAS[n] = {'puntos': {DEST[n]: [(rj(CX[n] + lado * 2.54), fila(FILA_ESP[n])),
+                                    (CX[n], rj((fila(FILA_ESP[n]) + BY[n]) / 2)),
+                                    (rj((CX[n] + SX[n]) / 2), BY[n]),
+                                    (SX[n], rj((BY[n] + fila(FILA_J[n])) / 2)),
+                                    (SX[n], rj(fila(FILA_J[n]) - 2.54))]}}
 PUENTES = [('JP1A', 'JP1B', '3V3')]

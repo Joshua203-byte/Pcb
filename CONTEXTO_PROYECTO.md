@@ -138,7 +138,8 @@ Todo lo que **no es un dato medido o confirmado** y todo lo que cambió respecto
 ### PCB (Fusion / EAGLE)
 - `PCB_ESP32_v4` … `v18` (`.brd`, `.sch`, algunas con `_vista.png`) — versiones anteriores. La v10 era la última sin errores; v11–v18 tenían errores de DRC (puentes sin cobre = "cable de interconexión", GND en islas, pad cerca del borde).
 - `PCB_ESP32_v19.brd`, `PCB_ESP32_v19.sch` **(generado)** — versión para fabricar: 1 puente (3V3), reglas 1.0 mm / relleno 1.3 mm, cargas a 12.7 mm, IN1–IN8 en una columna. DRC propio 0 errores (falta confirmar en Fusion).
-- `PCB_ESP32_v19_vista.png`, `PCB_ESP32_v19_cobre_1a1.pdf` **(generado)** — vista y cobre 1:1 para planchado (sin espejar).
+- `PCB_ESP32_v19_vista.png`, `PCB_ESP32_v19_cobre_1a1.pdf`, `PCB_ESP32_v19_componentes_1a1.pdf` **(generado)** — vista, cobre 1:1 (sin espejar) y guía de montaje / serigrafía espejada.
+- `imprimir/` **(generado)** — `.brd` listos para imprimir sin tocar capas: cobre y serigrafía espejada.
 - `PLAN_PCB_v19.md` **(generado)** — diagnóstico de v18, plan aplicado, GPIO nuevos, pasos en Fusion y armado.
 - `herramientas/` **(generado)** — scripts Python que generan y verifican la v19 desde la v10 (`generar_v19.py`, `verificar_brd.py`).
 
@@ -193,6 +194,12 @@ El PDF se arma en el espacio de trabajo de Claude con `assemble.py` (reordena y 
 ---
 
 ## Registro de cambios (más reciente primero)
+
+### 2026-10-31 — PCB v19 ajustada a los lineamientos del curso (KEY)
+- Quiebres de pista solo a 45° (antes había quiebres a 90°), reglas y clases en mil: SIGNAL 10 mil, POWER 15 mil (3V3, 5V, GND, PV, LB), ISOLATE 50 mil, Thermals encendido, Orphans apagado, 100 mil de margen al borde (la placa pasa a 104.8 × 67.3 mm).
+- Nombres de componentes (tNames) colocados sin choques; guía de montaje 1:1 (`PCB_ESP32_v19_componentes_1a1.pdf`).
+- Carpeta `imprimir/` con dos `.brd` que abren con solo las capas de impresión (cobre y serigrafía ya espejada).
+- Pendiente según los lineamientos: membrete (marco y cuadro de rotulación) en el esquemático, revisar simbología ANSI y la vista 3D.
 
 ### 2026-10-30 — PCB v19 generada por script
 - Diagnóstico de la v18: los 8 errores "cable de interconexión" venían de puentes hechos con dos pads JP sin cobre entre ellos; además GND quedaba en 7 islas y un pad estaba cerca del borde.
