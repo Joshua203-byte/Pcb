@@ -12,7 +12,7 @@ def geom_traza(pts, w):
     return LineString(pts).buffer(w / 2, 32)
 
 
-def relleno_gnd(W, H, pads, trazas):
+def relleno_gnd(W, H, pads, trazas, obstaculos=()):
     """Relleno GND con alivio termico (4 brazos por pad). Devuelve (cobre conectado, piezas descartadas)."""
     iso = REGLAS['aislamiento_gnd']
     wr = REGLAS['ancho_relleno']
@@ -22,6 +22,7 @@ def relleno_gnd(W, H, pads, trazas):
     for n, cams in trazas.items():
         if n != 'GND':
             ajeno += [geom_traza(c, w) for c, w in cams]
+    ajeno += list(obstaculos)   # textos de cobre (nombres), aislados como cualquier cobre ajeno
     ajeno_u = unary_union(ajeno)
     libre = zona.difference(ajeno_u.buffer(iso, 32))
     gpads = [p for p in pads if p['net'] == 'GND']
@@ -59,7 +60,7 @@ def grupos_gnd(pads, trazas, relleno):
     return grupos
 
 
-def drc(W, H, pads, trazas, relleno, puentes_top=()):
+def drc(W, H, pads, trazas, relleno, puentes_top=(), textos=()):
     """Lista de violaciones (texto). trazas: red -> [(puntos, ancho)]."""
     err = []
     tol = 1e-3
@@ -72,6 +73,8 @@ def drc(W, H, pads, trazas, relleno, puentes_top=()):
             minimo = mil(15) if n in POWER else mil(10)
             if w < minimo - tol:
                 err.append('ancho de pista %.3f mm < %.3f mm (clase) en %s' % (w, minimo, n))
+    for k, t in enumerate(textos):  # nombres en cobre: sin red, aislados de todo
+        objs.append(('TEXTO%d' % k, 'pista', t, 'texto#%d' % k))
     # separacion entre cobre de redes distintas
     for a, b in itertools.combinations(objs, 2):
         if a[0] is not None and a[0] == b[0]:

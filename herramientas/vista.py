@@ -67,7 +67,7 @@ def dibujar(W, H, partes, pads, trazas, anchos, archivo, relleno=None, puentes=(
     plt.close(fig)
 
 
-def pdf_cobre(W, H, pads, trazas, relleno, archivo):
+def pdf_cobre(W, H, pads, trazas, relleno, archivo, nombres=()):
     """Cobre de la cara inferior a escala 1:1 en A4, visto desde arriba (sin espejar).
 
     Para planchado: se imprime asi, se apoya la cara impresa sobre el cobre y la
@@ -90,6 +90,21 @@ def pdf_cobre(W, H, pads, trazas, relleno, archivo):
     for p in pads:
         poly(ax, p['geom'], zorder=3, **k)
         ax.add_patch(plt.Circle((p['x'], p['y']), min(0.4, p['drill'] / 2 * 0.6), fc='white', ec='none', zorder=4))
+    # nombres en cobre: letras negras espejadas (en la placa se leen desde la cara de cobre)
+    from matplotlib.textpath import TextPath
+    from matplotlib.patches import PathPatch
+    from matplotlib.font_manager import FontProperties
+    from matplotlib.transforms import Affine2D
+    fp = FontProperties(family='DejaVu Sans', weight='bold')
+    for (n, x, y, s, r) in nombres:
+        tp = TextPath((0, 0), n, size=1, prop=fp)
+        bb = tp.get_extents()
+        ancho = len(n) * s * 0.95
+        sx = ancho / bb.width
+        sy = s / bb.height
+        tr_ = (Affine2D().translate(-bb.x0 - bb.width / 2, -bb.y0 - bb.height / 2)
+               .scale(-sx, sy).rotate_deg(-r).translate(x, y))
+        ax.add_patch(PathPatch(tr_.transform_path(tp), fc='black', ec='none', zorder=6))
     ax.add_patch(MPoly([(0, 0), (W, 0), (W, H), (0, H)], closed=True, fc='none', ec='black', lw=0.3, zorder=5))
     # regla de 50 mm para comprobar la escala de impresion
     ax2 = fig.add_axes([x0 / 210, (y0 - 18) / 297, 50 / 210, 6 / 297])
@@ -101,8 +116,8 @@ def pdf_cobre(W, H, pads, trazas, relleno, archivo):
         ax2.plot([t, t], [1, 3], color='black', lw=1)
     fig.text(x0 / 210, (y0 - 22) / 297, 'Esta regla debe medir 50 mm. Imprimir al 100 % (sin "ajustar a pagina").',
              fontsize=8)
-    fig.text(x0 / 210, (y0 + H + 8) / 297, 'PCB_ESP32_v19 - cobre cara inferior, 1:1, vista desde el lado de componentes '
-             '(NO espejar para planchado)', fontsize=8)
+    fig.text(x0 / 210, (y0 + H + 8) / 297, 'PCB_ESP32_v19 - cobre cara inferior con nombres, 1:1, listo para planchar '
+             '(imprimir tal cual: los nombres salen al reves en el papel y derechos en la placa)', fontsize=7)
     fig.text(x0 / 210, (y0 + H + 4) / 297, 'La capa superior (puente JP1) NO se imprime: es un cable.', fontsize=8)
     fig.savefig(archivo)
     plt.close(fig)

@@ -23,6 +23,7 @@ import enrutar_v19 as E                     # noqa: E402
 import pcb_drc as R                         # noqa: E402
 import vista                                # noqa: E402
 import serigrafia                           # noqa: E402
+import nombres_cobre                        # noqa: E402
 from pcb_geo import HUELLAS, REGLAS, POWER, ancho, mil  # noqa: E402
 
 BASE_BRD = os.path.join(RAIZ, 'PCB_ESP32_v10.brd')
@@ -205,7 +206,7 @@ def poner_capas(root, visibles):
 
 
 # ------------------------------------------------------------------ .brd
-def escribir_brd(st, tr, top, archivo):
+def escribir_brd(st, tr, top, archivo, nombres_en_cobre=()):
     tree = ET.parse(BASE_BRD)
     root = tree.getroot()
     b = root.find('drawing/board')
@@ -228,6 +229,11 @@ def escribir_brd(st, tr, top, archivo):
         plain.append(t)
     for (pts, w, net) in top:  # dibujo del puente en serigrafia
         plain.append(el('wire', x1=pts[0][0], y1=pts[0][1], x2=pts[1][0], y2=pts[1][1], width=0.3, layer='21'))
+    for (n, x, y, s, r) in nombres_en_cobre:  # nombres grabados en el cobre, espejados (se leen desde abajo)
+        t = el('text', x=x, y=y, size=s, layer='16', font='vector', ratio=str(nombres_cobre.RATIO),
+               rot='MR%d' % r, align='center')
+        t.text = n
+        plain.append(t)
     # libreria
     reemplazar_paquetes(b.find('libraries/library'))
     # reglas (en mil, lineamiento L-07)
@@ -531,10 +537,12 @@ def main():
     for a, b, n in D.PUENTES:
         A, B = pp[(a, '1')], pp[(b, '1')]
         top.append(([(A['x'], A['y']), (B['x'], B['y'])], 0.8, n))
-    rel, _ = R.relleno_gnd(D.W, D.H, st.pads, tr)
-    errores = R.drc(D.W, D.H, st.pads, tr, rel, top) + R.conectividad(st.pads, tr, rel, top)
+    nc = nombres_cobre.colocar(D.W, D.H, st.P, st.pads, tr)
+    obst = nombres_cobre.obstaculos(nc)
+    rel, _ = R.relleno_gnd(D.W, D.H, st.pads, tr, obstaculos=obst)
+    errores = R.drc(D.W, D.H, st.pads, tr, rel, top, textos=obst) + R.conectividad(st.pads, tr, rel, top)
     errores += extremos(st, tr)
-    escribir_brd(st, tr, top, SALIDA + '.brd')
+    escribir_brd(st, tr, top, SALIDA + '.brd', nc)
     escribir_sch(st, SALIDA + '.sch')
     errores += revisar_archivos(SALIDA + '.brd', SALIDA + '.sch')
     errores += R.angulos(tr)
@@ -543,7 +551,7 @@ def main():
                   puentes=[t[0] for t in top], cuerpos=contornos_docu(st.P),
                   titulo='PCB v19 - cara inferior vista desde arriba - %d puente(s) - %.1f x %.1f mm'
                   % (len(top), D.W, D.H))
-    vista.pdf_cobre(D.W, D.H, st.pads, tr, rel, SALIDA + '_cobre_1a1.pdf')
+    vista.pdf_cobre(D.W, D.H, st.pads, tr, rel, SALIDA + '_cobre_1a1.pdf', nombres=nc)
     textos = textos_serigrafia(st.P, st.pads)
     nombres = serigrafia.colocar_nombres(D.W, D.H, st.P, st.pads, textos, contornos_docu(st.P),
                                          [t[0] for t in top])
