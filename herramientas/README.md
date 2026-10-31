@@ -12,6 +12,7 @@ Generan `PCB_ESP32_v19.brd/.sch` a partir de `PCB_ESP32_v10.brd/.sch`. Ver `../P
 | `generar_v19.py` | Hace todo y escribe `.brd`, `.sch`, la vista PNG, el PDF 1:1 y `reporte_v19.json`. |
 | `verificar_brd.py` | Revisa un `.brd` ya escrito, leyéndolo como Fusion. |
 | `vista.py` | Dibujos (PNG y PDF de cobre 1:1). |
+| `serigrafia.py` | Nombres de componentes sin choques y guía de montaje 1:1 (normal y espejada). |
 
 ```bash
 pip install shapely matplotlib numpy

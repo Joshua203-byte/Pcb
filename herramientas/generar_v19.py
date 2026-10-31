@@ -22,6 +22,7 @@ import diseno_v19 as D                      # noqa: E402
 import enrutar_v19 as E                     # noqa: E402
 import pcb_drc as R                         # noqa: E402
 import vista                                # noqa: E402
+import serigrafia                           # noqa: E402
 from pcb_geo import HUELLAS, REGLAS, ancho  # noqa: E402
 
 BASE_BRD = os.path.join(RAIZ, 'PCB_ESP32_v10.brd')
@@ -145,9 +146,6 @@ def textos_serigrafia(P, pads):
     T[-1] = (T[-1][0] - 3.6, T[-1][1], 'REF+', 0.8, '21', 'center-right')
     junto('J4', '2', '-', 0, 'center')
     T[-1] = (T[-1][0] - 3.6, T[-1][1], '-', 1.0, '21', 'center-right')
-    for k in range(1, 9):
-        c = pp[('COM%d' % k, '1')]
-        T.append((c['x'], c['y'] - 2.3, 'C%d' % k, 0.7, '21', 'center'))
     # nombres de GPIO junto a los pines usados del ESP32
     gpio_pad = {}
     for n, lst in D.REDES.items():
@@ -161,7 +159,6 @@ def textos_serigrafia(P, pads):
                   'center-left' if izq else 'center-right'))
     a = pp[('JP1A', '1')]
     b = pp[('JP1B', '1')]
-    T.append((a['x'] + 1.9, (a['y'] + b['y']) / 2, 'PUENTE 3V3', 0.8, '21', 'center-left'))
     T.append((2.5, D.H - 2.6, 'PBL Semiconductores - Monitor I-V  v19', 1.2, '21', 'center-left'))
     return T
 
@@ -172,7 +169,7 @@ def contornos_docu(P):
     u2, u5, u4 = pos['U2'], pos['U5'], pos['U4']
     ads = (u2.x - 2.0, u2.y - 22.86 - 2.6, u2.x + 15.8, u2.y + 2.6, 'ADS1115 (modulo plano, 28x17.8)')
     rtc = (u5.x - 5.0, u5.y - 12.7 - 2.5, u5.x + 5.0, u5.y + 2.5, 'RTC parado (pines en L)')
-    sd = (u4.x - 5.0, u4.y - 12.7 - 2.5, u4.x + 5.0, u4.y + 2.5, 'microSD parada')
+    sd = (u4.x - 5.0, u4.y - 12.7 - 1.5, u4.x + 5.0, u4.y + 2.5, 'microSD parada')
     return [ads, rtc, sd]
 
 
@@ -223,9 +220,14 @@ def escribir_brd(st, tr, top, archivo):
     els = b.find('elements')
     for c in list(els):
         els.remove(c)
+    nombres = serigrafia.colocar_nombres(D.W, D.H, st.P, st.pads, textos_serigrafia(st.P, st.pads),
+                                         contornos_docu(st.P), [t[0] for t in top])
     for p in st.P:
         e = el('element', name=p.nombre, library=LIB, package=p.paquete, value=p.valor,
-               x=p.x, y=p.y, rot='R%d' % (p.rot % 360))
+               x=p.x, y=p.y, rot='R%d' % (p.rot % 360), smashed='yes')
+        x, y, s, r = nombres[p.nombre]
+        e.append(el('attribute', name='NAME', x=x, y=y, size=s, layer='25', align='center', rot='R%d' % r))
+        e.append(el('attribute', name='VALUE', x=p.x, y=p.y, size=0.8, layer='27', display='off'))
         els.append(e)
     # senales
     sig = b.find('signals')
@@ -431,6 +433,11 @@ def main():
                   titulo='PCB v19 - cara inferior vista desde arriba - %d puente(s) - %.1f x %.1f mm'
                   % (len(top), D.W, D.H))
     vista.pdf_cobre(D.W, D.H, st.pads, tr, rel, SALIDA + '_cobre_1a1.pdf')
+    textos = textos_serigrafia(st.P, st.pads)
+    nombres = serigrafia.colocar_nombres(D.W, D.H, st.P, st.pads, textos, contornos_docu(st.P),
+                                         [t[0] for t in top])
+    serigrafia.pdf_serigrafia(D.W, D.H, st.P, st.pads, textos, nombres, contornos_docu(st.P),
+                              SALIDA + '_componentes_1a1.pdf', puentes=[t[0] for t in top])
     rep = dict(errores=errores, ancho=D.W, alto=D.H, puentes=[(a, b, n) for a, b, n in D.PUENTES],
                gpio=D.GPIO, redes={n: [list(x) for x in v] for n, v in D.REDES.items()})
     json.dump(rep, open(os.path.join(AQUI, 'reporte_v19.json'), 'w'), indent=1, ensure_ascii=False)
