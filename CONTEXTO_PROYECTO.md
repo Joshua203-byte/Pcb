@@ -139,6 +139,7 @@ Todo lo que **no es un dato medido o confirmado** y todo lo que cambió respecto
 - `PCB_ESP32_v4` … `v18` (`.brd`, `.sch`, algunas con `_vista.png`) — versiones anteriores. La v10 era la última sin errores; v11–v18 tenían errores de DRC (puentes sin cobre = "cable de interconexión", GND en islas, pad cerca del borde).
 - `PCB_ESP32_v19.brd`, `PCB_ESP32_v19.sch` **(generado)** — versión para fabricar: 1 puente (3V3), reglas 1.0 mm / relleno 1.3 mm, cargas a 12.7 mm, IN1–IN8 en una columna. DRC propio 0 errores (falta confirmar en Fusion).
 - `PCB_ESP32_v19_vista.png`, `PCB_ESP32_v19_cobre_1a1.pdf`, `PCB_ESP32_v19_componentes_1a1.pdf` **(generado)** — vista, cobre 1:1 (sin espejar) y guía de montaje / serigrafía espejada.
+- `PCB_ESP32_v19_diagrama.png` **(generado)** — diagrama de componentes y conexiones visto desde la cara de cobre (como quedó planchada, espejada respecto a Fusion); lo genera `herramientas/diagrama_conexiones.py` leyendo el `.brd`.
 - `imprimir/` **(generado)** — `.brd` listos para imprimir sin tocar capas: cobre y serigrafía espejada.
 - `PLAN_PCB_v19.md` **(generado)** — diagnóstico de v18, plan aplicado, GPIO nuevos, pasos en Fusion y armado.
 - `herramientas/` **(generado)** — scripts Python que generan y verifican la v19 desde la v10 (`generar_v19.py`, `verificar_brd.py`).
