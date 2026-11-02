@@ -14,6 +14,8 @@ def preparar():
     P = D.partes()
     for p in P:  # la colocacion se escribe sin el corrimiento DX; aqui se aplica
         p.x = round(p.x + D.DX, 4)
+        if not p.nombre.startswith(D.FIJAS):
+            p.y = round(p.y + D.DY, 4)
     pads = []
     for p in P:
         pads += p.pads()
@@ -87,7 +89,7 @@ class Estado:
             cam = []
             inicio = None
             for punto in (wp or []) + [None]:
-                dst = destinos if punto is None else {self.R.idx(punto[0] + D.DX, punto[1])}
+                dst = destinos if punto is None else {self.R.idx(punto[0] + D.DX, punto[1] + D.DY)}
                 if punto is not None and bloq[next(iter(dst))]:
                     print('  punto de paso bloqueado en %s: %s' % (net, punto))
                     return False
@@ -177,4 +179,4 @@ def guardar(E, archivo):
 
 if __name__ == '__main__':
     E, ok = enrutar_todo()
-    guardar(E, 'v19_ruteo.json')
+    guardar(E, 'v20_ruteo.json')

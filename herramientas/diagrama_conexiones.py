@@ -1,4 +1,4 @@
-"""Diagrama de componentes y conexiones de la PCB v19 (estilo diagrama de referencia).
+"""Diagrama de componentes y conexiones de la PCB v20 (estilo diagrama de referencia).
 
 Por defecto se dibuja como se ve la placa ya planchada: cara de cobre, es decir,
 ESPEJADA izquierda-derecha respecto a Fusion. Los componentes van del otro lado
@@ -8,7 +8,7 @@ Uso (desde la carpeta del proyecto):
     python3 herramientas/diagrama_conexiones.py [salida.png] [--sin-espejo]
 
 --sin-espejo dibuja la vista de Fusion (lado de componentes).
-Lee PCB_ESP32_v19.brd, asi que siempre coincide con la placa.
+Lee PCB_ESP32_v20.brd, asi que siempre coincide con la placa.
 """
 import os
 import sys
@@ -39,7 +39,7 @@ import diseno_v19 as D                                            # noqa: E402
 from pcb_geo import Parte, HUELLAS, rot_xy                        # noqa: E402
 from generar_v19 import contornos_docu                            # noqa: E402
 
-BRD = os.path.join(RAIZ, 'PCB_ESP32_v19.brd')
+BRD = os.path.join(RAIZ, 'PCB_ESP32_v20.brd')
 
 # ------------------------------------------------------------------ estilo
 PX = 20                      # pixeles por mm
@@ -138,7 +138,7 @@ def leer_partes(brd):
 
 
 def color_de(nombre):
-    if nombre.startswith('COM'):
+    if nombre.startswith(('COM', 'NO')):
         return COL['K']
     if nombre.startswith('JP'):
         return COL['JP']
@@ -286,10 +286,8 @@ def construir(salida, espejo=True):
             return ['+ REF', '− GND'][i]
         if n == 'C4':
             return ['+ 5V', '− GND'][i]
-        if n.startswith('COM'):
+        if n.startswith(('COM', 'NO')):
             return n
-        if n.startswith('RL') and pad == '1':
-            return 'NO'
         if n.startswith('JP'):
             return '3V3'
         return None
@@ -304,7 +302,7 @@ def construir(salida, espejo=True):
             return ['right', 'left'] if espejo else ['left', 'right']
         if n == 'U4':
             return ['left', 'right'] if espejo else ['right', 'left']
-        if n.startswith('COM'):
+        if n.startswith(('COM', 'NO')):
             return ['down', 'up']
         if n.startswith('RL'):
             return ['down', 'up']
@@ -471,15 +469,16 @@ def construir(salida, espejo=True):
         callout(n, n, v, f, color_de(n), contorno[n], n)
     # grupos
     rl = unary_union([contorno['RL%d' % k] for k in range(1, 9)])
-    com = unary_union([unary_union([q['g'] for q in por_parte['COM%d' % k]]).buffer(0.8) for k in range(1, 9)])
+    com = unary_union([unary_union([q['g'] for q in por_parte[c + '%d' % k]]).buffer(0.8)
+                     for c in ('COM', 'NO') for k in range(1, 9)])
     callout('RL', 'RL1–RL8', 'cargas ½ W', '2.2 · 4.7 · 10 · 22 · 47 · 100 · 220 · 470 Ω', COL['R'], rl, 'RL')
-    callout('COM', 'COM1–COM8', 'y NO', 'COMk: cable COM del relé k · NO: cable NO (pad cuadrado)', COL['K'], com, 'COM')
+    callout('COM', 'COM1–COM8', 'y NO1–NO8', 'COMk: cable COM del relé k · NOk: cable NO del relé k', COL['K'], com, 'COM')
     jp = unary_union([contorno['JP1A'], contorno['JP1B']])
     callout('JP', 'JP1A–JP1B', 'cable puente', 'une los dos pads de 3V3 (lado de componentes)', COL['JP'], jp, 'JP1A')
 
     # ------------------------------------------------------------ cabecera y leyenda
     ax.add_patch(plt.Rectangle((xmin, H + MT), xmax - xmin, HH, fc='#f2f4f3', ec='none', zorder=30))
-    titulo = 'Sistema de medición de panel solar: componentes y conexiones de la PCB v19'
+    titulo = 'Sistema de medición de panel solar: componentes y conexiones de la PCB v20'
     tam = min(4.0, (xmax - xmin - 4.0) / medir(titulo, 1.0, True))
     texto(ax, titulo, xmin + 2.0, H + MT + HH - 4.0, tam, '#16302a', True, 'left', z=31)
     sub = ('Pistas azules = cobre (cara de abajo) · cuadros de colores = componentes (van del lado de la fibra) · '
@@ -500,7 +499,7 @@ def construir(salida, espejo=True):
     texto(ax, 'IOnn = número de GPIO del ESP32 · el pad cuadrado es el pin 1 / el + · todo el cobre azul tenue es GND', xmin + 2.0, -19.2,
           1.5, GRIS, False, 'left', z=31)
     texto(ax, 'Cables externos: panel → J1 · celda de referencia → J4 · módulo de relés: IN1–IN8 ← J2, J6, J7 y '
-              '5V/GND ← J5; COMk y NOk de cada relé → pads COMk y NO de RLk · DS18B20 → J3',
+              '5V/GND ← J5; COMk y NOk de cada relé → pads COMk y NOk · DS18B20 → J3',
           xmin + 2.0, -22.0, 1.5, GRIS, False, 'left', z=31)
 
     fig.savefig(salida, dpi=PX * 25.4, facecolor=FONDO)
@@ -515,5 +514,5 @@ def construir(salida, espejo=True):
 if __name__ == '__main__':
     args = [a for a in sys.argv[1:] if not a.startswith('--')]
     esp = '--sin-espejo' not in sys.argv
-    sal = args[0] if args else os.path.join(RAIZ, 'PCB_ESP32_v19_diagrama.png' if esp else 'PCB_ESP32_v19_diagrama_lado_componentes.png')
+    sal = args[0] if args else os.path.join(RAIZ, 'PCB_ESP32_v20_diagrama.png' if esp else 'PCB_ESP32_v20_diagrama_lado_componentes.png')
     construir(sal, esp)

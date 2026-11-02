@@ -1,4 +1,6 @@
-# PCB v19: plan y cómo usarla
+# PCB v19 / v20: plan y cómo usarla
+
+> **v20 (2026-11-02), la versión para fabricar:** es igual a la v19, con un solo cambio. Cada cable NO de relé tiene su propio pad y agujero (NO1–NO8, 3.0 mm, taladro 1.3 mm), separado del pad de la resistencia de carga. Una pista corta de 60 mil une NOk con RLk. La fila de pads NO va entre COM y las cargas, y para que nada quede apiñado todo lo demás sube 3.81 mm: la placa mide **104.8 × 71.1 mm**. Las reglas siguen igual (40 mil, ISOLATE 50 mil, 45°, margen de 100 mil). DRC propio y `verificar_brd.py`: 0 errores. Archivos: `PCB_ESP32_v20.*` e `imprimir/PCB_ESP32_v20_*`.
 
 La v19 se generó a partir de la v10 (la última sin errores) con un script (`herramientas/generar_v19.py`). Corrige los cinco puntos de la revisión y los errores que aparecieron entre la v11 y la v18.
 
@@ -30,7 +32,7 @@ La v19 se generó a partir de la v10 (la última sin errores) con un script (`he
 3. **Taladros y anillos.**
    * Tiras (ESP32, módulos, conectores): pad **ovalado 1.8 × 2.7 mm**, con más cobre para soldar sin achicar el hueco entre pines. Taladro de 0.9 mm (1.0 en las tiras macho).
    * Resistencias de señal: pad de 2.4 mm, taladro de 0.9 mm, separación de **5.08 mm**. Aquí caben las de 1 W de las derivaciones.
-   * Resistencias de carga: separación de **12.7 mm**, como pedía la revisión. El pad del lado NO es de 3.0 mm con taladro de 1.3 mm, para soldar ahí el cable del relé.
+   * Resistencias de carga: separación de **12.7 mm**, como pedía la revisión. En la v20 los dos pads de la resistencia son normales (2.4 mm, taladro 0.9). El cable NO del relé va a su propio pad NOk (3.0 mm, taladro 1.3).
    * Borneras: pad de 3.2 mm con taladro de 1.3 mm.
    * Ningún taladro queda a menos de 2 mm del borde.
 4. **Puente con pads propios.** Queda **un solo puente**, el de 3V3, entre JP1A y JP1B. Son pads de 2.5 mm con taladro de 1.0 mm, y la línea está dibujada en la serigrafía. En el archivo, ese cable está dibujado como pista en la capa superior. Así Fusion lo ve conectado, pero esa capa **no se fabrica**: en la placa real es un cable soldado del lado de los componentes.
@@ -38,7 +40,7 @@ La v19 se generó a partir de la v10 (la última sin errores) con un script (`he
    * El 5V de la microSD llega con una pista, no con un puente: baja desde el pin 5V, pasa por debajo del ESP32 y sube por el borde derecho.
    * El GND es una sola pieza, sin puentes de GND, y el script comprueba que no queden islas.
    * Las borneras del panel (J1) y de la celda de referencia (J4) están en el borde izquierdo.
-   * El banco de cargas está en el borde inferior: COM abajo, NO en medio y LB arriba.
+   * El banco de cargas está en el borde inferior: COM abajo, después NO (pads propios en la v20), luego las cargas y LB arriba.
    * Las 8 señales de los relés salen en **una sola columna ordenada IN1…IN8** en el borde derecho.
    * La entrada analógica (divisor, filtro y derivaciones) está junto al ADS1115, con pistas cortas.
    * **Contornos de los módulos** en la capa tDocu: el ADS1115 va acostado, con el cuerpo hacia la derecha y solo pistas debajo. El RTC y la microSD van parados (pines en L).
@@ -86,7 +88,7 @@ Imprimí siempre al 100 % y comprobá que el contorno mida 104.8 × 67.3 mm.
 
 * **Antes de imprimir, medí tu DevKit:** distancia de centro a centro entre las dos filas de pines. Si no es 25.40 mm, mirá la sección 6.
 * **Puente JP1:** un cable aislado del lado de los componentes, de JP1A a JP1B, siguiendo la línea de la serigrafía. Se suelda por abajo como cualquier componente.
-* **Cargas:** el cable NO del relé k va al pad grande "NO" de RLk, y el cable COM del relé k va al pad COMk (abajo).
+* **Cargas:** el cable NO del relé k va al pad NOk (v20: pad propio, justo debajo de RLk), y el cable COM del relé k va al pad COMk (abajo).
 * **Antena del ESP32:** sobresale unos 1.4 mm del borde superior a propósito. Es la recomendación de Espressif: no debe haber cobre debajo de la antena. Es la única excepción a los 100 mil de margen.
 * **Altura bajo los módulos:** bajo el ADS1115 (rectángulo punteado) no hay componentes, solo pistas. El RTC y la microSD se suponen parados, con los pines en L de fábrica.
 

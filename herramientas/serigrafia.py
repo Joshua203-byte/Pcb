@@ -142,7 +142,7 @@ def _hoja(W, H, P, pads, textos, nombres, contornos, titulo, puentes=()):
         ax.text(x, y, t, fontsize=s * pt_mm, ha=ha.get(a, 'center'), va='center', color='#333')
     for t, (x, y, s, r) in nombres.items():
         ax.text(x, y, t, fontsize=s * pt_mm, ha='center', va='center', weight='bold', rotation=r)
-    fig.text(x0 / 210, (y0 + H + 6) / 297, 'PCB_ESP32_v19 - ' + titulo, fontsize=8)
+    fig.text(x0 / 210, (y0 + H + 6) / 297, 'PCB_ESP32_v20 - ' + titulo, fontsize=8)
     fig.text(x0 / 210, (y0 - 8) / 297, 'Imprimir al 100 %%. El cuadro de la placa debe medir %.1f x %.1f mm.'
              % (W, H), fontsize=8)
     return fig

@@ -8,7 +8,9 @@ XL = 55.88                    # columna izquierda del ESP32
 XR = XL + SEP_ESP32           # columna derecha (depende de la DevKit: 25.40 o 22.86)
 XH = XR + 15.24               # columna de microSD y tiras de reles
 DX = 6 * 0.3175               # corrimiento de todo hacia la derecha: 100 mil libres al borde izquierdo
-W, H = XH + 6.35 + DX, 67.31  # tamano de placa (mm)
+DY = 12 * 0.3175              # v20: todo sube 3.81 mm (menos COMk y NOk) para dar lugar a la fila de pads NO
+FIJAS = ('COM', 'NO')         # piezas que no suben (filas de abajo)
+W, H = XH + 6.35 + DX, 67.31 + DY  # tamano de placa (mm)
 XA = 22.86                    # ADS1115
 XRTC = 48.26                  # RTC DS3231
 
@@ -43,10 +45,11 @@ def partes():
     a(Parte('J4', 'TERM2_5MM', 'Celda referencia', 6.35, 35.56, 270))
     a(Parte('R_SH1', 'RES_V', '1', 17.78, 26.67, 90))
     a(Parte('J1', 'TERM2_5MM', 'Panel', 3.81, 12.7, 0))
-    # banco de cargas abajo: COM (PV) abajo, NO en medio, LB arriba
+    # banco de cargas abajo: COM (PV) abajo, NO (pad propio) en medio, la carga RL encima y LB arriba
     for k in range(8):
         x = 12.7 + 4.445 * k
         a(Parte('COM%d' % (k + 1), 'WIREPAD', 'COM K%d' % (k + 1), x, 4.445, 0))
+        a(Parte('NO%d' % (k + 1), 'WIREPAD', 'NO K%d' % (k + 1), x, 9.525, 0))
         a(Parte('RL%d' % (k + 1), 'RES_H_T', ['2.2', '4.7', '10', '22', '47', '100', '220', '470'][k],
                 x, 9.525, 90))
     return P
@@ -82,14 +85,14 @@ REDES = {
     'LB': [('U2', '9'), ('R_SH1', '2')] + [('RL%d' % k, '2') for k in range(1, 9)],
 }
 for k in range(1, 9):
-    REDES['NO%d' % k] = [('RL%d' % k, '1')]
+    REDES['NO%d' % k] = [('NO%d' % k, '1'), ('RL%d' % k, '1')]
 
 # GPIO de cada red (para la tabla del firmware)
 GPIO = {'SCL': 32, 'SDA': 33, 'DQ': 14, 'MISO': 19, 'MOSI': 18, 'SCK': 5, 'CS': 17,
         'IN1': 16, 'IN2': 4, 'IN3': 21, 'IN4': 22, 'IN5': 23, 'IN6': 25, 'IN7': 26, 'IN8': 27}
 
 # orden de enrutado: (red, [puntos de paso opcionales por tramo])
-ORDEN = ['MISO', 'MOSI', 'SCK', 'CS', 'IN1', 'IN2',
+ORDEN = ['NO%d' % k for k in range(1, 9)] + ['MISO', 'MOSI', 'SCK', 'CS', 'IN1', 'IN2',
          'IN3', 'IN4', 'IN5', 'IN6', 'IN7', 'IN8',
          'SCL', 'SDA', '3V3', 'DQ', '5V',
          'LB', 'REF', 'A0', 'DIV', 'PV']
@@ -130,4 +133,6 @@ for n in CX:
                                     (rj((CX[n] + SX[n]) / 2), BY[n]),
                                     (SX[n], rj((BY[n] + fila(FILA_J[n])) / 2)),
                                     (SX[n], rj(fila(FILA_J[n]) - 2.54))]}}
+for k in range(1, 9):   # NOk -> RLk: tramo corto y grueso (lleva la corriente de carga)
+    VIAS['NO%d' % k] = {'ancho': MIL60}
 PUENTES = [('JP1A', 'JP1B', '3V3')]

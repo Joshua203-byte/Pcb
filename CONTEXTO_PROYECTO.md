@@ -137,7 +137,8 @@ Todo lo que **no es un dato medido o confirmado** y todo lo que cambió respecto
 
 ### PCB (Fusion / EAGLE)
 - `PCB_ESP32_v4` … `v18` (`.brd`, `.sch`, algunas con `_vista.png`) — versiones anteriores. La v10 era la última sin errores; v11–v18 tenían errores de DRC (puentes sin cobre = "cable de interconexión", GND en islas, pad cerca del borde).
-- `PCB_ESP32_v19.brd`, `PCB_ESP32_v19.sch` **(generado)** — versión para fabricar: 1 puente (3V3), reglas 1.0 mm / relleno 1.3 mm, cargas a 12.7 mm, IN1–IN8 en una columna. DRC propio 0 errores (falta confirmar en Fusion).
+- `PCB_ESP32_v20.*` **(generado)** — **versión para fabricar**: la v19 con un pad NO propio por relé (NO1–NO8), placa de 104.8 × 71.1 mm. Mismos productos que la v19 (vista, cobre 1:1, componentes, PARA_PLANCHAR, diagrama, `imprimir/`).
+- `PCB_ESP32_v19.brd`, `PCB_ESP32_v19.sch` **(generado)** — versión anterior: 1 puente (3V3), reglas 1.0 mm / relleno 1.3 mm, cargas a 12.7 mm, IN1–IN8 en una columna. DRC propio 0 errores (falta confirmar en Fusion).
 - `PCB_ESP32_v19_vista.png`, `PCB_ESP32_v19_cobre_1a1.pdf`, `PCB_ESP32_v19_componentes_1a1.pdf` **(generado)** — vista, cobre 1:1 (sin espejar) y guía de montaje / serigrafía espejada.
 - `PCB_ESP32_v19_diagrama.png` **(generado)** — diagrama de componentes y conexiones visto desde la cara de cobre (como quedó planchada, espejada respecto a Fusion); lo genera `herramientas/diagrama_conexiones.py` leyendo el `.brd`.
 - `imprimir/` **(generado)** — `.brd` listos para imprimir sin tocar capas: cobre y serigrafía espejada.
@@ -195,6 +196,11 @@ El PDF se arma en el espacio de trabajo de Claude con `assemble.py` (reordena y 
 ---
 
 ## Registro de cambios (más reciente primero)
+
+### 2026-11-02 — PCB v20: pads NO propios
+- Cada cable NO de relé tiene su propio pad y agujero (NO1–NO8, 3.0/1.3 mm) en una fila entre COM y las cargas, unido a RLk por una pista de 60 mil. Antes compartía el agujero con la pata 1 de la resistencia. Los pads de RLk pasan a 2.4/0.9 mm.
+- Todo lo demás es igual a la v19, pero sube 3.81 mm. Placa de 104.8 × 71.1 mm. DRC propio 0 errores, `verificar_brd.py` 0 errores.
+- Archivos `PCB_ESP32_v20.brd/.sch`, `_vista.png`, `_cobre_1a1.pdf`, `_componentes_1a1.pdf`, `_PARA_PLANCHAR.pdf`, `_diagrama.png`, `imprimir/PCB_ESP32_v20_*`. Los scripts conservan el nombre `*_v19.py`.
 
 ### 2026-10-31 — PCB v19 ajustada a los lineamientos del curso (KEY)
 - Quiebres de pista solo a 45° (antes había quiebres a 90°), reglas y clases en mil: SIGNAL 10 mil, POWER 15 mil (3V3, 5V, GND, PV, LB), ISOLATE 50 mil, Thermals encendido, Orphans apagado, 100 mil de margen al borde (la placa pasa a 104.8 × 67.3 mm).

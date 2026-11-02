@@ -35,7 +35,7 @@ def colocar(W, H, P, pads, trazas, puentes_top=()):
     ocupado = []
     base_grupos = len(grupos_gnd(pads, trazas, relleno_gnd(W, H, pads, trazas)[0]))
     # filas repetidas (cargas): solo se rotulan la primera y la ultima, para no amontonar
-    omitir = {'RL%d' % k for k in range(2, 8)} | {'COM%d' % k for k in range(2, 8)}
+    omitir = {'%s%d' % (n, k) for n in ('RL', 'COM', 'NO') for k in range(2, 8)}
     for p in sorted(P, key=lambda q: len(HUELLAS[q.paquete]['pads'])):
         if p.nombre in omitir:
             continue

@@ -1,6 +1,6 @@
-# Herramientas de la PCB v19
+# Herramientas de la PCB v19 / v20
 
-Generan `PCB_ESP32_v19.brd/.sch` a partir de `PCB_ESP32_v10.brd/.sch`. Ver `../PLAN_PCB_v19.md`.
+Generan `PCB_ESP32_v20.brd/.sch` (la v19 con pads NO propios; los scripts conservan el nombre `_v19`) a partir de `PCB_ESP32_v10.brd/.sch`. Ver `../PLAN_PCB_v19.md`.
 
 | Archivo | Qué hace |
 |---|---|
@@ -13,10 +13,10 @@ Generan `PCB_ESP32_v19.brd/.sch` a partir de `PCB_ESP32_v10.brd/.sch`. Ver `../P
 | `verificar_brd.py` | Revisa un `.brd` ya escrito, leyéndolo como Fusion. |
 | `vista.py` | Dibujos (PNG y PDF de cobre 1:1). |
 | `serigrafia.py` | Nombres de componentes sin choques y guía de montaje 1:1 (normal y espejada). |
-| `diagrama_conexiones.py` | Diagrama de componentes y conexiones (`PCB_ESP32_v19_diagrama.png`), visto desde la cara de cobre (espejado). Con `--sin-espejo` sale la vista de Fusion. |
+| `diagrama_conexiones.py` | Diagrama de componentes y conexiones (`PCB_ESP32_v20_diagrama.png`), visto desde la cara de cobre (espejado). Con `--sin-espejo` sale la vista de Fusion. |
 
 ```bash
 pip install shapely matplotlib numpy
 python3 herramientas/generar_v19.py
-python3 herramientas/verificar_brd.py PCB_ESP32_v19.brd
+python3 herramientas/verificar_brd.py PCB_ESP32_v20.brd
 ```

@@ -1,7 +1,7 @@
 """Verificacion independiente: lee un .brd ya escrito y revisa conexiones y separaciones.
 
 No usa el estado interno del generador: reconstruye pads, pistas y relleno desde
-el XML, como lo haria Fusion. Uso:  python3 herramientas/verificar_brd.py PCB_ESP32_v19.brd
+el XML, como lo haria Fusion. Uso:  python3 herramientas/verificar_brd.py PCB_ESP32_v20.brd
 """
 import math
 import sys
@@ -97,7 +97,7 @@ def airwires(pads, trazas, top):
 
 
 if __name__ == '__main__':
-    W, H, pads, tr, top = leer(sys.argv[1] if len(sys.argv) > 1 else 'PCB_ESP32_v19.brd')
+    W, H, pads, tr, top = leer(sys.argv[1] if len(sys.argv) > 1 else 'PCB_ESP32_v20.brd')
     rel, _ = pcb_drc.relleno_gnd(W, H, pads, tr)
     e = pcb_drc.drc(W, H, pads, tr, rel, top) + pcb_drc.conectividad(pads, tr, rel, top) + airwires(pads, tr, top)
     print('placa %.2f x %.2f mm, %d pads, %d pistas, %d puente(s)' % (W, H, len(pads), sum(len(v) for v in tr.values()), len(top)))

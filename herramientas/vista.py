@@ -116,7 +116,7 @@ def pdf_cobre(W, H, pads, trazas, relleno, archivo, nombres=()):
         ax2.plot([t, t], [1, 3], color='black', lw=1)
     fig.text(x0 / 210, (y0 - 22) / 297, 'Esta regla debe medir 50 mm. Imprimir al 100 % (sin "ajustar a pagina").',
              fontsize=8)
-    fig.text(x0 / 210, (y0 + H + 8) / 297, 'PCB_ESP32_v19 - cobre cara inferior con nombres, 1:1, listo para planchar '
+    fig.text(x0 / 210, (y0 + H + 8) / 297, 'PCB_ESP32_v20 - cobre cara inferior con nombres, 1:1, listo para planchar '
              '(imprimir tal cual: los nombres salen al reves en el papel y derechos en la placa)', fontsize=7)
     fig.text(x0 / 210, (y0 + H + 4) / 297, 'La capa superior (puente JP1) NO se imprime: es un cable.', fontsize=8)
     fig.savefig(archivo)

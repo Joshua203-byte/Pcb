@@ -1,4 +1,4 @@
-"""Genera PCB_ESP32_v19.brd y PCB_ESP32_v19.sch a partir de la v10.
+"""Genera PCB_ESP32_v20.brd y PCB_ESP32_v20.sch a partir de la v10.
 
 Uso (desde la carpeta del proyecto):
     pip install shapely matplotlib numpy
@@ -28,7 +28,7 @@ from pcb_geo import HUELLAS, REGLAS, POWER, ancho, mil  # noqa: E402
 
 BASE_BRD = os.path.join(RAIZ, 'PCB_ESP32_v10.brd')
 BASE_SCH = os.path.join(RAIZ, 'PCB_ESP32_v10.sch')
-SALIDA = os.path.join(RAIZ, 'PCB_ESP32_v19')
+SALIDA = os.path.join(RAIZ, 'PCB_ESP32_v20')
 LIB = 'PCB_PBL_Semiconductores'
 CABECERA = '<?xml version="1.0" encoding="utf-8"?>\n<!DOCTYPE eagle SYSTEM "eagle.dtd">\n'
 
@@ -77,10 +77,6 @@ def paquete_xml(nombre):
             p.append(t)
     elif nombre in ('TERM2_5MM', 'RES_H_T', 'CAP_5MM'):
         rect(*h['cuerpo'])
-        if nombre == 'RES_H_T':
-            t = el('text', x=-1.0, y=2.2, size=0.8, layer='21')
-            t.text = 'NO'
-            p.append(t)
     elif nombre == 'RES_V':
         p.append(el('circle', x=0, y=0, radius=1.9, width=0.2, layer='21'))
         p.append(el('wire', x1=1.9, y1=0, x2=3.88, y2=0, width=0.2, layer='21'))
@@ -160,7 +156,7 @@ def textos_serigrafia(P, pads):
                   'center-left' if izq else 'center-right'))
     a = pp[('JP1A', '1')]
     b = pp[('JP1B', '1')]
-    T.append((2.5, D.H - 2.6, 'PBL Semiconductores - Monitor I-V  v19', 1.2, '21', 'center-left'))
+    T.append((2.5, D.H - 2.6, 'PBL Semiconductores - Monitor I-V  v20', 1.2, '21', 'center-left'))
     return T
 
 
@@ -238,7 +234,7 @@ def escribir_brd(st, tr, top, archivo, nombres_en_cobre=()):
     reemplazar_paquetes(b.find('libraries/library'))
     # reglas (en mil, lineamiento L-07)
     dr = b.find('designrules')
-    dr.set('name', 'PBL v19 (mil, planchado / percloruro)')
+    dr.set('name', 'PBL v20 (mil, planchado / percloruro)')
     nuevos = {'mdWireWire': '40mil', 'mdWirePad': '40mil', 'mdWireVia': '40mil', 'mdPadPad': '20mil',
               'mdPadVia': '20mil', 'mdViaVia': '20mil', 'mdCopperDimension': '60mil', 'mdDrill': '6mil',
               'msWidth': '10mil', 'msDrill': '15mil', 'slThermalIsolate': '20mil',
@@ -334,9 +330,10 @@ def escribir_sch(st, archivo):
         if p.get('name') == 'TP1':
             partes.remove(p)
     valor = {p.nombre: p.valor for p in st.P}
-    for n in ('JP1A', 'JP1B'):
+    nuevos = [('JP1A', 'JPAD'), ('JP1B', 'JPAD')] + [('NO%d' % k, 'WIREPAD') for k in range(1, 9)]
+    for n, dset in nuevos:
         if partes.find("part[@name='%s']" % n) is None:
-            partes.append(el('part', name=n, library=LIB, deviceset='JPAD', device='', value=valor[n]))
+            partes.append(el('part', name=n, library=LIB, deviceset=dset, device='', value=valor[n]))
     ds_de = {p.get('name'): p.get('deviceset') for p in partes}
     sheet = s.find('sheets/sheet')
     inst = sheet.find('instances')
@@ -344,6 +341,9 @@ def escribir_sch(st, archivo):
         if i.get('part') == 'TP1':
             inst.remove(i)
     pos_jp = {'JP1A': (280.0, 266.0), 'JP1B': (280.0, 253.3)}
+    for i in list(inst):   # NOk (cable NO del rele k): al lado de su COMk
+        if i.get('part', '').startswith('COM'):
+            pos_jp['NO' + i.get('part')[3:]] = (float(i.get('x')) + 30.0, float(i.get('y')))
     for n, (x, y) in pos_jp.items():
         if inst.find("instance[@part='%s']" % n) is None:
             inst.append(el('instance', part=n, gate='G$1', x=x, y=y))
@@ -384,7 +384,7 @@ def escribir_sch(st, archivo):
     poner_rejilla(root.find('drawing/grid'), 100, 50)
     for t in sheet.find('plain').iter('text'):
         if t.text and t.text.startswith('PBL Semiconductores'):
-            t.text = 'PBL Semiconductores EE2002 - Monitor I-V de panel 1.5 W (ESP32 DevKitC) - v19'
+            t.text = 'PBL Semiconductores EE2002 - Monitor I-V de panel 1.5 W (ESP32 DevKitC) - v20'
     ET.indent(root, space='')
     with open(archivo, 'w', encoding='utf-8') as fh:
         fh.write(CABECERA + ET.tostring(root, encoding='unicode'))
@@ -437,7 +437,7 @@ def escribir_impresion(brd_principal, sch_principal, st, top, carpeta):
     # 1) cobre
     tree = ET.parse(brd_principal)
     poner_capas(tree.getroot(), CAPAS_COBRE)
-    base = os.path.join(carpeta, 'PCB_ESP32_v19_IMPRIMIR_COBRE')
+    base = os.path.join(carpeta, 'PCB_ESP32_v20_IMPRIMIR_COBRE')
     ET.indent(tree.getroot(), space='')
     with open(base + '.brd', 'w', encoding='utf-8') as fh:
         fh.write(CABECERA + ET.tostring(tree.getroot(), encoding='unicode'))
@@ -505,7 +505,7 @@ def escribir_impresion(brd_principal, sch_principal, st, top, carpeta):
             b.find(tag).remove(c)
     poner_capas(root, CAPAS_SERIGRAFIA)
     ET.indent(root, space='')
-    with open(os.path.join(carpeta, 'PCB_ESP32_v19_IMPRIMIR_SERIGRAFIA_espejada.brd'), 'w', encoding='utf-8') as fh:
+    with open(os.path.join(carpeta, 'PCB_ESP32_v20_IMPRIMIR_SERIGRAFIA_espejada.brd'), 'w', encoding='utf-8') as fh:
         fh.write(CABECERA + ET.tostring(root, encoding='unicode'))
 
 
@@ -549,7 +549,7 @@ def main():
     escribir_impresion(SALIDA + '.brd', SALIDA + '.sch', st, top, os.path.join(RAIZ, 'imprimir'))
     vista.dibujar(D.W, D.H, st.P, st.pads, tr, ancho, SALIDA + '_vista.png', relleno=rel,
                   puentes=[t[0] for t in top], cuerpos=contornos_docu(st.P),
-                  titulo='PCB v19 - cara inferior vista desde arriba - %d puente(s) - %.1f x %.1f mm'
+                  titulo='PCB v20 - cara inferior vista desde arriba - %d puente(s) - %.1f x %.1f mm'
                   % (len(top), D.W, D.H))
     vista.pdf_cobre(D.W, D.H, st.pads, tr, rel, SALIDA + '_cobre_1a1.pdf', nombres=nc)
     textos = textos_serigrafia(st.P, st.pads)
@@ -559,7 +559,7 @@ def main():
                               SALIDA + '_componentes_1a1.pdf', puentes=[t[0] for t in top])
     rep = dict(errores=errores, ancho=D.W, alto=D.H, puentes=[(a, b, n) for a, b, n in D.PUENTES],
                gpio=D.GPIO, redes={n: [list(x) for x in v] for n, v in D.REDES.items()})
-    json.dump(rep, open(os.path.join(AQUI, 'reporte_v19.json'), 'w'), indent=1, ensure_ascii=False)
+    json.dump(rep, open(os.path.join(AQUI, 'reporte_v20.json'), 'w'), indent=1, ensure_ascii=False)
     print('\nDRC propio: %d errores' % len(errores))
     for e in errores:
         print('  -', e)
