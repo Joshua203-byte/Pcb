@@ -17,20 +17,44 @@ for orig, dest in (('PCB_ESP32_v20_esquematico_cableado.png', 'sch.png'), ('PCB_
                    ('PCB_ESP32_v20_vista.png', 'pcb_vista.png'), ('PCB_ESP32_v20_diagrama.png', 'pcb_diag.png')):
     shutil.copy(os.path.join(RAIZ, orig), os.path.join(IMG, dest))
 
+
+# ------------------------------------------------------------------ figura de la practica de campo (23 de septiembre)
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import numpy as np
+_b = np.array([0, 15, 30, 45, 60, 75, 90]); _v = np.array([5.652, 5.705, 5.667, 5.602, 5.457, 5.268, 5.046]); _i = np.array([23.73, 24.11, 25.33, 25.14, 24.56, 23.59, 22.50])
+_p = _v * _i / 1000
+_o = ['Norte', 'Noreste', 'Este', 'Sureste', 'Sur', 'Suroeste', 'Oeste', 'Noroeste']; _po = np.array([22.62, 27.11, 23.16, 40.71, 25.79, 23.76, 31.57, 23.62]) * 0.22 / 1000 * 1000 / 1000
+_po = np.array([22.62, 27.11, 23.16, 40.71, 25.79, 23.76, 31.57, 23.62]) ** 2 * 220 / 1e6
+fig, ax = plt.subplots(1, 2, figsize=(9, 3.1))
+ax[0].plot(_b, _p, 'o-', color='black', label='experimental'); ax[0].plot(_b, _p.max() * np.cos(np.radians(_b)), 's--', color='gray', label='P$_{max}$·cos β')
+ax[0].set(xlabel='Inclinación β (°)', ylabel='Potencia (W)', title='Efecto de la inclinación (sur)'); ax[0].legend(fontsize=8); ax[0].grid(alpha=.3)
+ax[1].bar(range(8), _po, color=['#bbbbbb' if k == 0 else '#333333' if k == 3 else '#111111' for k in range(8)])
+ax[1].set_xticks(range(8)); ax[1].set_xticklabels(_o, rotation=40, ha='right', fontsize=8); ax[1].set(ylabel='Potencia (W)', title='Efecto de la orientación (β = 15°)'); ax[1].grid(alpha=.3, axis='y')
+fig.tight_layout(); fig.savefig(os.path.join(IMG, 'f_campo.png'), dpi=170); plt.close(fig)
+
 N = {'t': 0, 'f': 0}
 ROMANO = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV']
 
 
-def tabla(titulo, cab, filas, cls='', ancho=False):
+REF = {}
+
+
+def tabla(titulo, cab, filas, cls='', ancho=False, key=None):
     N['t'] += 1
+    if key:
+        REF['t:' + key] = N['t']
     h = '<div class="tabla %s"><div class="cap-t">TABLA %s<br><span>%s</span></div><table><thead><tr>%s</tr></thead><tbody>%s</tbody></table></div>' % (
         'ancho' if ancho else '', ROMANO[N['t']], titulo.upper(), ''.join('<th>%s</th>' % c for c in cab),
         ''.join('<tr>' + ''.join('<td>%s</td>' % c for c in f) + '</tr>' for f in filas))
     return h
 
 
-def figura(archivos, pie, ancho=False, w=None):
+def figura(archivos, pie, ancho=False, w=None, key=None):
     N['f'] += 1
+    if key:
+        REF['f:' + key] = N['f']
     if isinstance(archivos, str):
         archivos = [archivos]
     imgs = ''.join('<img src="img/%s"%s>' % (a, (' style="width:%s"' % w) if w else '') for a in archivos)
@@ -145,13 +169,14 @@ add('''<p class="resumen"><b><i>Resumen—Se presenta el sistema físico del mon
 
 # ---------------- I
 add('''<h2>I. Introducción y cambios desde el Avance 2</h2>
-<p>Este documento presenta el estado del sistema físico y responde, apartado por apartado, a los siete criterios de la rúbrica del avance [22]: caracterización I-V, selección de sensores, acondicionamiento de señal, programación y adquisición, montaje, validación y documentación. Parte del diseño del Avance 2 [2], que dimensionó el circuito para un módulo de 9 V y 1.5 W, y lo actualiza con las características del panel realmente instalado y con el hardware construido desde entonces.</p>
+<p>Este documento presenta el estado del sistema físico y responde, apartado por apartado, a los siete criterios de la rúbrica del avance [21]: caracterización I-V, selección de sensores, acondicionamiento de señal, programación y adquisición, montaje, validación y documentación. Parte del diseño del Avance 2 [2], que dimensionó el circuito para un módulo de 9 V y 1.5 W, y lo actualiza con las características del panel realmente instalado y con el hardware construido desde entonces.</p>
 <p>Los cambios principales son:</p>
 <ul><li><b>Panel.</b> Los dos paneles, el principal y el de referencia, son idénticos: 6 V de circuito abierto, 200 mA de cortocircuito, 12 celdas en serie y 15 × 7 cm (0.0105 m²). El Avance 2 suponía 9 V y 1.5 W.</li>
 <li><b>Escalas.</b> Con 6 V el divisor 33 kΩ/10 kΩ entrega 1.4 V a la entrada A0 y la derivación de 1 Ω entrega 0.2 V en cortocircuito (sección IV).</li>
 <li><b>Hardware añadido.</b> Un módulo microSD (SPI) y un reloj de tiempo real DS3231 con pila, para registrar datos con hora sin depender de la laptop (sección III).</li>
 <li><b>Placa.</b> El esquemático de KiCad se llevó a una PCB de una cara (v20), fabricada con el método de plancha, y el firmware pasó a la versión 1.1.</li></ul>
 <p>El criterio de diseño se mantiene: distinguir pérdidas reversibles (suciedad, temperatura) de la degradación permanente exige repetibilidad entre sesiones, más que exactitud absoluta.</p>''')
+REF['f:arq'] = N['f'] + 1
 add('<figure class="ancho">%s<figcaption>Fig. %d. Arquitectura del sistema: medición (izquierda), control de cargas, microcontrolador y periféricos (derecha) y enlace Wi-Fi con el dashboard.</figcaption></figure>' % (svg_arq, N['f'] + 1))
 N['f'] += 1
 
@@ -164,30 +189,45 @@ add('''<h2>II. Caracterización I-V del panel</h2>
 <li><b>Punto de máxima potencia (MPP)</b>: el punto donde P = V·I es máxima. Sus coordenadas son <b>V<sub>mp</sub></b> e <b>I<sub>mp</sub></b>, y la potencia máxima es <b>P<sub>max</sub> = V<sub>mp</sub>·I<sub>mp</sub></b>.</li>
 <li><b>Factor de llenado</b> FF = P<sub>max</sub>/(V<sub>oc</sub>·I<sub>sc</sub>), que mide qué tan cuadrada es la curva; un FF bajo indica resistencia serie alta o celdas dañadas [17].</li></ul>
 <h3>B. Valores del panel a condiciones estándar</h3>
-<p>Con los datos de placa del equipo (V<sub>oc</sub> = 6 V, I<sub>sc</sub> = 200 mA) se construyó el modelo de un diodo de 12 celdas con resistencia serie y paralelo, resuelto con la función W de Lambert. El factor de idealidad (n = 1.088) se ajustó con una medición de banco con luz del teléfono (I<sub>sc</sub> = 0.28 mA, V<sub>oc</sub> = 3.81 V a 23.2 °C), y R<sub>s</sub> = 2 Ω es un valor típico de un panel pequeño. A 1 000 W/m² y 25 °C el modelo da los valores de la Tabla I; el FF de Green con R<sub>s</sub> = 2 Ω (0.74) coincide con el del modelo (0.735) [17].</p>''')
+<p>Con los datos de placa del equipo (V<sub>oc</sub> = 6 V, I<sub>sc</sub> = 200 mA) se construyó el modelo de un diodo de 12 celdas con resistencia serie y paralelo, resuelto con la función W de Lambert. El factor de idealidad (n = 1.088) se ajustó con una medición de banco con luz del teléfono (I<sub>sc</sub> = 0.28 mA, V<sub>oc</sub> = 3.81 V a 23.2 °C), y R<sub>s</sub> = 2 Ω es un valor típico de un panel pequeño. A 1 000 W/m² y 25 °C el modelo da los valores de la @@t:par@@; el FF de Green con R<sub>s</sub> = 2 Ω (0.74) coincide con el del modelo (0.735) [17].</p>''')
 add(tabla('Parámetros del panel a 1 000 W/m² y 25 °C (modelo de un diodo)', ['Magnitud', 'Valor', 'Cómo se obtiene'], [
     ['V<sub>oc</sub>', '6.00 V', 'dato de placa'], ['I<sub>sc</sub>', '0.200 A', 'dato de placa'],
     ['V<sub>mp</sub>', '4.74 V', 'máximo de P = V·I'], ['I<sub>mp</sub>', '0.186 A', 'corriente en el MPP'],
     ['P<sub>max</sub>', '0.88 W', 'V<sub>mp</sub>·I<sub>mp</sub>'], ['FF', '0.735', 'P<sub>max</sub>/(V<sub>oc</sub>·I<sub>sc</sub>); V<sub>oc</sub>·I<sub>sc</sub> = 1.20 W'],
-    ['R en el MPP', '25.5 Ω', 'V<sub>mp</sub>/I<sub>mp</sub>'], ['Eficiencia η', '8.4 %', 'P<sub>max</sub>/(G·A), A = 0.0105 m²']]))
+    ['R en el MPP', '25.5 Ω', 'V<sub>mp</sub>/I<sub>mp</sub>'], ['Eficiencia η', '8.4 %', 'P<sub>max</sub>/(G·A), A = 0.0105 m²']], key='par'))
 add('''<p>La carga que más se acerca al MPP con las resistencias del banco es la combinación RL5∥RL6∥RL7∥RL8 (26.4 Ω, máscara 0xF0), que extrae 0.874 W, es decir, 99.2 % de P<sub>max</sub>; la combinación inicial anterior (RL5∥RL6, 32 Ω) solo alcanzaba 92 %. Por eso el firmware arranca el muestreo continuo con 0xF0 y después usa el MPP del último barrido válido.</p>''')
 add('''<h3>C. Curvas en varias condiciones</h3>
-<p>Se registraron barridos de 164 puntos en cinco condiciones: mañana, mediodía con el panel limpio, tarde, mediodía con el panel cubierto de polvo (−12 % de luz) y mediodía con sombra parcial sobre 4 de las 12 celdas. La Fig. 2 muestra las curvas I-V y P-V medidas, con la curva esperada del fabricante a la misma irradiancia y temperatura; la Tabla II resume los parámetros.</p>''')
-add(figura('f_iv.png', 'Curvas I-V y P-V en cinco condiciones. Puntos: medición; líneas punteadas: modelo del fabricante a esa irradiancia y temperatura. El rombo marca el MPP.', True))
+<p>Se registraron barridos de 164 puntos en cinco condiciones: mañana, mediodía con el panel limpio, tarde, mediodía con el panel cubierto de polvo (−12 % de luz) y mediodía con sombra parcial sobre 4 de las 12 celdas. La @@f:iv@@ muestra las curvas I-V y P-V medidas, con la curva esperada del fabricante a la misma irradiancia y temperatura; la @@t:cond@@ resume los parámetros.</p>''')
+add(figura('f_iv.png', 'Curvas I-V y P-V en cinco condiciones. Puntos: medición; líneas punteadas: modelo del fabricante a esa irradiancia y temperatura. El rombo marca el MPP.', True, key='iv'))
 filas = []
 for _, r in cond.iterrows():
     filas.append([html.escape(str(r['condicion'])), '%.0f' % r['G'], '%.1f' % r['T'], '%.0f' % (r['Isc_med'] * 1000), fmt(r['Voc_med']), fmt(r['Vmp_med']), '%.0f' % (r['Imp_med'] * 1000),
                   fmt(r['Pmax_med'], 3), fmt(r['FF_med'], 3), fmt(r['d_Isc_%'], 1), fmt(r['d_Voc_%'], 1), fmt(r['d_Pmax_%'], 1)])
-add(tabla('Parámetros medidos y diferencia frente al modelo del fabricante', ['Condición', 'G (W/m²)', 'T (°C)', 'I<sub>sc</sub> (mA)', 'V<sub>oc</sub> (V)', 'V<sub>mp</sub> (V)', 'I<sub>mp</sub> (mA)', 'P<sub>max</sub> (W)', 'FF', 'ΔI<sub>sc</sub> (%)', 'ΔV<sub>oc</sub> (%)', 'ΔP<sub>max</sub> (%)'], filas, '', True))
+add(tabla('Parámetros medidos y diferencia frente al modelo del fabricante', ['Condición', 'G (W/m²)', 'T (°C)', 'I<sub>sc</sub> (mA)', 'V<sub>oc</sub> (V)', 'V<sub>mp</sub> (V)', 'I<sub>mp</sub> (mA)', 'P<sub>max</sub> (W)', 'FF', 'ΔI<sub>sc</sub> (%)', 'ΔV<sub>oc</sub> (%)', 'ΔP<sub>max</sub> (%)'], filas, '', True, key='cond'))
 add('''<h3>D. Efecto de la irradiancia y de la temperatura</h3>
-<p>Con los 52 barridos válidos del día con G ≥ 300 W/m² (Fig. 3) se ajustaron los coeficientes de las ecuaciones de corrección de la norma IEC 60891 [15]:</p>
+<p>Con los 52 barridos válidos del día con G ≥ 300 W/m² (@@f:gt@@) se ajustaron los coeficientes de las ecuaciones de corrección de la norma IEC 60891 [15]:</p>
 <ul><li>I<sub>sc</sub> es lineal con la irradiancia: 208.7 mA a 1 000 W/m² (R² = 0.9996).</li>
 <li>V<sub>oc</sub> baja −27.6 mV/°C (−0.47 %/°C), que equivale a −2.3 mV/°C por celda, típico del silicio cristalino, y crece 0.335 V por cada unidad de ln(G).</li>
 <li>La potencia normalizada cae −0.68 %/°C, más que el −0.4 a −0.5 %/°C de los módulos grandes, porque con 4–5 V de operación la resistencia serie y la caída de V<sub>oc</sub> pesan más.</li></ul>''')
-add(figura('f_gt.png', 'Efecto de la irradiancia sobre I<sub>sc</sub> y de la temperatura sobre V<sub>oc</sub> y la potencia (barridos válidos del día).', False))
+add(figura('f_gt.png', 'Efecto de la irradiancia sobre I<sub>sc</sub> y de la temperatura sobre V<sub>oc</sub> y la potencia (barridos válidos del día).', False, key='gt'))
 add('''<h3>E. Desviaciones respecto de los datos del fabricante</h3>
 <p>La I<sub>sc</sub> medida es 2 a 3 % mayor que la de placa (200 mA) en todas las condiciones. Se explica por la tolerancia de la derivación de 1 Ω (hasta 1 %), por la celda de referencia, que no es idéntica a la del panel principal, y porque la placa da el valor mínimo garantizado. V<sub>oc</sub> sale 0.5 a 0.7 % por debajo del modelo: el divisor y el ADS1115 cargan ligeramente el panel (0.13 %) y el modelo supone resistencia paralelo ideal. P<sub>max</sub> sale 2 % por encima del modelo en las condiciones normales, consecuencia directa de la I<sub>sc</sub> mayor.</p>
 <p>Las diferencias más grandes aparecen con sombra parcial: V<sub>mp</sub> queda 6.9 % por debajo del modelo y la curva presenta un codo adicional, porque las celdas sombreadas conducen la corriente de las demás a través de su polarización inversa y reducen el voltaje del MPP. Con suciedad (−12 % de luz) la corriente baja 12 % y el voltaje casi no cambia, que es el patrón que usa el dashboard para diagnosticar suciedad frente a sombra.</p>''')
+
+add('''<h3>F. Pruebas de campo con multímetro (23 de septiembre de 2026)</h3>
+<p>Antes de contar con el sistema de adquisición se hizo una práctica de campo [22] en el Instituto Kriete (13.67° N, 89.25° O, unos 920 m s. n. m.), de 8:40 a 9:51 a. m., con cielo soleado y parcialmente nublado, con nubosidad dispersa y cambiante. Se usó un solo multímetro (Astroai DM6000AR) y una carga fija de 220 Ω, la misma resistencia del relé K7 del banco. Se midió la corriente y el voltaje al variar la inclinación del panel orientado al sur (de 0° a 90° en pasos de 15°) y la orientación con 15° de inclinación (en pasos de 45° de azimut). Como había un solo instrumento, primero se midieron todas las corrientes y después todas las tensiones; por eso V e I de un mismo ángulo no son simultáneos. Son datos de referencia reales, tomados con multímetro y no con el sistema de adquisición, y se muestran por separado de los barridos.</p>''')
+filas_i = [[0, 5.652, 23.73], [15, 5.705, 24.11], [30, 5.667, 25.33], [45, 5.602, 25.14], [60, 5.457, 24.56], [75, 5.268, 23.59], [90, 5.046, 22.50]]
+pmax_i = max(v * i / 1000 for _, v, i in filas_i)
+add(tabla('Práctica de campo: efecto de la inclinación (orientación sur, carga de 220 Ω, multímetro)', ['β (°)', 'V (V)', 'I (mA)', 'P = V·I (W)', 'P relativa (%)'],
+          [['%d' % b, '%.3f' % v, '%.2f' % i, '%.4f' % (v * i / 1000), '%.1f' % (100 * v * i / 1000 / pmax_i)] for b, v, i in filas_i], key='campo'))
+add('''<p>En la Parte B (con 15° de inclinación) la tensión se calculó como V = I·R. La potencia fue de 0.113 W al norte (22.62 mA), 0.162 W al noreste, 0.118 W al este, 0.365 W al sureste (40.71 mA), 0.146 W al sur (25.79 mA), 0.124 W al suroeste, 0.219 W al oeste (31.57 mA) y 0.123 W al noroeste.</p>''')
+add(figura('f_campo.png', 'Práctica de campo del 23 de septiembre: potencia frente a la inclinación, con la curva P<sub>max</sub>·cos β (izquierda), y frente a la orientación con β = 15° (derecha).', False, key='campo'))
+add('''<p>Lectura de los resultados:</p>
+<ul><li>La curva de inclinación es mucho más plana que el modelo del coseno: entre 0° y 60° varía menos de 7 %. Con nubes, buena parte de la luz es difusa y casi no depende del ángulo. El máximo medido fue a 30° (0.1435 W) y a 15° la potencia es solo 4.2 % menor, dentro del ruido; el óptimo teórico del sitio es de unos 15°.</li>
+<li>En 30° a 90° la relación V/I salió de 222 a 224 Ω, coherente con la carga de 220 Ω; en 0° y 15° fue de 237 a 238 Ω, señal de que la luz cambió entre la tanda de corrientes y la de tensiones.</li>
+<li>En la Parte B el máximo fue hacia el sureste (0.3646 W), con el Sol al este-sureste; las lecturas del sureste y el oeste sobresalen por claros momentáneos entre las nubes, de modo que la diferencia de 69 % entre la mejor y la peor orientación está exagerada. Solo es válida la comparación relativa dentro de cada tabla.</li></ul>
+<p>Estas mediciones respaldan la decisión del montaje fijo a 30° al sur y muestran por qué el sistema adquiere V e I en el mismo punto del barrido: la medición no simultánea con nubes cambiantes distorsiona la relación entre ambas.</p>''')
+add(figura('campo_fotos.jpg', 'Práctica de campo del 23 de septiembre: montaje con el panel, la carga de 220 Ω y el multímetro (8:54 a. m.); cielo al inicio de las mediciones (8:53 a. m.); y lectura de 25.33 mA con β = 30°.', False, key='fcampo'))
 
 # ---------------- III
 add('''<h2>III. Selección y justificación de sensores</h2>
@@ -217,14 +257,14 @@ add('''<p>La celda de referencia comparte material, ventana y plano con el panel
 <p><b>Reloj de tiempo real DS3231 [5].</b> El ESP32 pierde la hora al reiniciarse y su oscilador interno deriva decenas de segundos por día. El DS3231 tiene oscilador compensado por temperatura con exactitud de ±2 ppm entre 0 y 40 °C (unos 0.17 s por día) y ±3.5 ppm hasta 85 °C, se conecta al mismo bus I²C (dirección 0x68) y conserva la hora con una pila CR2032 (consumo de respaldo de unos 3 µA, años de duración). El dashboard sincroniza la hora una vez y cada dato lleva su marca en formato ISO 8601 aunque no haya red.</p>
 <p><b>Módulo microSD.</b> Guarda <tt>barridos.csv</tt> y <tt>muestras.csv</tt> por SPI (FAT32, 3.3 V lógicos). La jornada de la sección VIII ocupa unos @@KB@@ kB, así que una tarjeta de 8 GB alcanza para años. Con ello el equipo registra de forma autónoma durante días sin laptop y no se pierden datos si falla el Wi-Fi.</p>
 <p><b>Microcontrolador.</b> Se conserva el ESP32 (DevKitC de 38 pines): lógica de 3.3 V compatible con el ADS1115, dos buses (I²C y SPI), 1-Wire por software, Wi-Fi integrado y suficientes salidas para los ocho relés [6].</p>''')
-add(figura(['esp32.jpg', 'ads1115.jpg', 'pcb_rtc.jpg'], 'Componentes: ESP32 DevKitC de 38 pines, módulo ADS1115 y PCB v20 con el módulo RTC DS3231 y su pila CR2032 montado.', False, '31%'))
+add(figura(['esp32.jpg', 'ads1115.jpg', 'pcb_rtc.jpg'], 'Componentes: ESP32 DevKitC de 38 pines, módulo ADS1115 y PCB v20 con el módulo RTC DS3231 y su pila CR2032 montado.', False, '31%', key='comp'))
 
 # ---------------- IV
 add('''<h2>IV. Circuito de acondicionamiento de señal</h2>
 <h3>A. Esquemático</h3>
-<p>La Fig. 5 muestra el esquemático funcional con todas las conexiones dibujadas; se generó a partir de las redes del archivo de la PCB y un verificador automático comprueba que cada pin esté en su red, que no haya cortos y que ninguna red quede en tramos sueltos (106 pines, 94 cables). Las líneas que se cruzan sin punto no se tocan. La alimentación se muestra con símbolos y, además, con los rieles dibujados (Fig. 6).</p>''')
-add(figura('sch.png', 'Esquemático cableado de la PCB v20: ESP32, ADS1115, RTC DS3231, microSD, DS18B20, divisor, derivaciones y banco de ocho cargas.', True))
-add(figura('sch_pot.png', 'Distribución de alimentación: cada pin conectado al riel de su red (5 V, 3V3 y GND).', True))
+<p>La @@f:sch@@ muestra el esquemático funcional con todas las conexiones dibujadas; se generó a partir de las redes del archivo de la PCB y un verificador automático comprueba que cada pin esté en su red, que no haya cortos y que ninguna red quede en tramos sueltos (106 pines, 94 cables). Las líneas que se cruzan sin punto no se tocan. La alimentación se muestra con símbolos y, además, con los rieles dibujados (@@f:pot@@).</p>''')
+add(figura('sch.png', 'Esquemático cableado de la PCB v20: ESP32, ADS1115, RTC DS3231, microSD, DS18B20, divisor, derivaciones y banco de ocho cargas.', True, key='sch'))
+add(figura('sch_pot.png', 'Distribución de alimentación: cada pin conectado al riel de su red (5 V, 3V3 y GND).', True, key='pot'))
 add(tabla('Conexiones del circuito de adquisición', ['Función', 'Nodo', 'Conexión'], [
     ['Bus I²C', 'U2, U5', 'SDA = GPIO33, SCL = GPIO32; ADS1115 en 0x48 (ADDR a GND), DS3231 en 0x68'],
     ['Voltaje del panel', 'U2 AIN0', 'R1 = 33 kΩ y R2 = 10 kΩ; filtro R3 = 1 kΩ y C1 = 0.1 µF'],
@@ -234,7 +274,7 @@ add(tabla('Conexiones del circuito de adquisición', ['Función', 'Nodo', 'Conex
     ['MicroSD', 'U4', 'SCK = 5, MISO = 19, MOSI = 18, CS = 17; alimentada con 5 V'],
     ['Relés', 'J2, J6, J7', 'IN1–IN8 = GPIO 16, 4, 21, 22, 23, 25, 26, 27'],
     ['Cargas', 'COMk, NOk, RLk', 'COMk a PV; NOk a RLk; RLk a LB (2.2, 4.7, 10, 22, 47, 100, 220, 470 Ω)'],
-    ['Alimentación', 'J5, C4, JP1', '5 V a VIN del ESP32 y a los relés; C4 = 10 µF; JP1 lleva 3V3 al RTC']], '', True))
+    ['Alimentación', 'J5, C4, JP1', '5 V a VIN del ESP32 y a los relés; C4 = 10 µF; JP1 lleva 3V3 al RTC']], '', True, key='conex'))
 add('''<h3>B. Divisor de voltaje</h3>
 <p>El voltaje del panel se lleva a A0 con el divisor R1 = 33 kΩ y R2 = 10 kΩ:</p>
 <div class="eq">V<sub>A0</sub> = V<sub>panel</sub>·R2/(R1 + R2) = V<sub>panel</sub>/4.3</div>
@@ -249,15 +289,15 @@ add(tabla('Errores máximos de cada canal (al punto de máxima potencia)', ['Fue
     ['Ganancia del ADS1115 (0.15 %)', '0.15 %', '—'], ['Carga del ADS1115 sobre el divisor', '0.13 % en V', 'corregible'],
     ['Cuantización (0.54 mV y 15.6 µA)', '0.011 % en V; 0.008 % en I', '< 0.02 %'], ['Desfase de A2–A3 (≈250 µV)', '0.13 % en I', 'eliminado por el autocero'],
     ['<b>Voltaje (suma lineal / RSS)</b>', '<b>2.1 % / 1.3 %</b>', '≈ 0.6 %'], ['<b>Corriente (suma lineal / RSS)</b>', '<b>1.3 % / 1.0 %</b>', '≈ 0.6 %'],
-    ['<b>Potencia (suma lineal / RSS)</b>', '<b>3.4 % / 1.7 %</b>', '≈ 1.2 %'], ['Temperatura (DS18B20)', '±0.5 °C → 0.34 % en P', 'igual']]))
+    ['<b>Potencia (suma lineal / RSS)</b>', '<b>3.4 % / 1.7 %</b>', '≈ 1.2 %'], ['Temperatura (DS18B20)', '±0.5 °C → 0.34 % en P', 'igual']], key='err'))
 add('''<h3>F. Protecciones</h3>
 <ul><li><b>Sobrevoltaje.</b> A0 admite hasta V<sub>DD</sub> + 0.3 V = 3.6 V. Si el panel entregara 20 V por un error de conexión, el divisor daría 4.65 V; los diodos internos de la entrada limitarían la corriente a ≈0.12 mA, porque la resistencia en serie es R3 más la equivalente del divisor (unos 8.7 kΩ), muy por debajo del máximo permitido de 10 mA [3].</li>
 <li><b>Polaridad inversa.</b> Con el panel invertido (−6 V) A0 llegaría a −1.4 V; la corriente por los diodos de protección sería de ≈0.13 mA por la misma resistencia en serie, sin daño. La derivación queda en el lado bajo, con tensión de modo común cercana a tierra (< 0.25 V).</li>
 <li><b>Panel y cargas.</b> El panel no puede entregar más de 6.5 V ni 0.21 A, por lo que no se requiere diodo TVS ni fusible para la operación normal; para exteriores se recomienda un TVS de 7.5 V entre PV y GND contra transitorios (sección XI).</li>
 <li><b>Alimentación.</b> C4 = 10 µF filtra los picos de las bobinas, y se usa un cargador de pared de 5 V/2 A, porque con USB de computadora los barridos amplios (7–8 relés cerrados) provocaron reinicios por caída de tensión.</li></ul>
 <h3>G. Placa de circuito impreso</h3>
-<p>La placa v20 es de una cara, con pistas a 45° y medidas en mil, según los lineamientos del curso. Cada relé tiene un pad NO propio (NO1–NO8) unido al pad de su resistencia de carga, de modo que resistencia y contacto no comparten orificio. Se fabricó con el método de plancha (Fig. 7).</p>''')
-add(figura(['pcb_vista.png', 'pcb_diag.png'], 'PCB v20: vista de la placa (cobre y serigrafía) y diagrama de componentes y conexiones.', True, '48%'))
+<p>La placa v20 es de una cara, con pistas a 45° y medidas en mil, según los lineamientos del curso. Cada relé tiene un pad NO propio (NO1–NO8) unido al pad de su resistencia de carga, de modo que resistencia y contacto no comparten orificio. Se fabricó con el método de plancha (@@f:pcb@@).</p>''')
+add(figura(['pcb_vista.png', 'pcb_diag.png'], 'PCB v20: vista de la placa (cobre y serigrafía) y diagrama de componentes y conexiones.', True, '48%', key='pcb'))
 
 # ---------------- V
 add('''<h2>V. Programación y adquisición de datos</h2>
@@ -269,6 +309,7 @@ add('''<h2>V. Programación y adquisición de datos</h2>
 <li><b>Muestreo continuo:</b> <tt>iniciarMuestra</tt> y <tt>pasoMuestra</tt>.</li>
 <li><b>Registro y transmisión:</b> <tt>isoDesdeEpoch</tt> (hora ISO 8601 del RTC), <tt>guardarSD</tt>, <tt>guardarMuestraSD</tt>, <tt>enviarAlServidor</tt>, WebSocket (puerto 81) y servidor HTTP (puerto 80), con un punto de acceso propio de respaldo.</li>
 <li><b>Errores:</b> <tt>adsResponde</tt> verifica el ADS1115 antes de cada punto; si falla, se aborta el barrido y se envía el aviso al dashboard.</li></ul>''' % fw_lineas)
+REF['f:flujo'] = N['f'] + 1
 add('<figure class="ancho">%s<figcaption>Fig. %d. Diagrama de flujo del firmware: arranque, barrido I-V con punto de control, registro y transmisión, y muestreo continuo.</figcaption></figure>' % (svg_flujo, N['f'] + 1))
 N['f'] += 1
 add('''<h3>B. Secuencia de un punto y filtrado</h3>
@@ -277,22 +318,24 @@ add('''<h3>B. Secuencia de un punto y filtrado</h3>
 <h3>C. Selección de puntos y validez</h3>
 <p>Con 8 resistencias en paralelo existen 255 combinaciones. El barrido de 164 puntos se eligió por longitud de arco de la curva I-V normalizada: el circuito abierto, el cortocircuito y las demás combinaciones más próximas a puntos equidistantes en la curva, de modo que se concentran en el codo. Un barrido es válido si: (a) al repetir la primera combinación al final la corriente varía a lo sumo 5 % (punto de control), y (b) la irradiancia de la celda de referencia entre el inicio y el final no varía más de 5 %. Los barridos que no cumplen se guardan con la bandera <tt>valido = 0</tt> y el dashboard no los usa.</p>
 <h3>D. Marca de tiempo, almacenamiento y datos para el modelo</h3>
-<p>Cada dato lleva la hora del RTC (época Unix y ISO 8601) y se guarda en la microSD y se transmite por WebSocket o por HTTP POST al servidor local, que lo almacena en CSV. La Tabla VIII muestra los campos. El muestreo continuo toma una medición cada 5 s con la carga en el MPP del último barrido válido (relés cerrados 0.3 s, ciclo de trabajo de ≈5 %), de modo que se tiene la potencia a lo largo del día, y un barrido completo cada 10 min.</p>''')
+<p>Cada dato lleva la hora del RTC (época Unix y ISO 8601) y se guarda en la microSD y se transmite por WebSocket o por HTTP POST al servidor local, que lo almacena en CSV. La @@t:csv@@ muestra los campos. El muestreo continuo toma una medición cada 5 s con la carga en el MPP del último barrido válido (relés cerrados 0.3 s, ciclo de trabajo de ≈5 %), de modo que se tiene la potencia a lo largo del día, y un barrido completo cada 10 min.</p>''')
 add(tabla('Formato de los archivos CSV de la microSD', ['Archivo', 'Columnas'], [
     ['<tt>barridos.csv</tt>', 'epoch, barrido, paso, mascara, v_V, i_A, p_W, temperatura_C, irradiancia_Wm2, valido'],
-    ['<tt>muestras.csv</tt>', 'epoch, iso, mascara, v_V, i_A, p_W, temperatura_C, irradiancia_Wm2, valido']], '', True))
+    ['<tt>muestras.csv</tt>', 'epoch, iso, mascara, v_V, i_A, p_W, temperatura_C, irradiancia_Wm2, valido']], '', True, key='csv'))
 add('''<p>De cada barrido válido el análisis obtiene I<sub>sc</sub>, V<sub>oc</sub>, V<sub>mp</sub>, I<sub>mp</sub>, P<sub>max</sub>, FF, temperatura e irradiancia, y de ahí el índice de rendimiento corregido PR = P<sub>max</sub>/[P<sub>nom</sub>(G/1000)(1 + γ(T − 25))] de la norma IEC 61724-1 [16]; son las variables de entrada del modelo predictivo. El dashboard (HTML sin dependencias) muestra los barridos y las series en tiempo real, tiene modo de prueba para trabajar con luz débil y exporta a CSV.</p>''')
-add(figura(['dash_pantalla1.jpg', 'dash_pantalla2.jpg'], 'Dashboard en la laptop durante las pruebas de banco: estado, magnitudes del barrido y curvas I-V y P-V.', True, '48%'))
+add(figura(['dash_pantalla1.jpg', 'dash_pantalla2.jpg'], 'Dashboard en la laptop durante las pruebas de banco: estado, magnitudes del barrido y curvas I-V y P-V.', True, '48%', key='dash'))
 
 # ---------------- VI
 add('''<h2>VI. Montaje e integración física</h2>
 <p>El sistema se instala sobre los dos paneles idénticos de 15 × 7 cm, montados en el mismo plano con 30° de inclinación al sur geográfico (decisión de montaje fijo del Avance 2: rinde 9 % más que 14° en noviembre y diciembre y conserva la comparabilidad del índice). El panel de la izquierda es el principal y el de la derecha es la celda de referencia, para que ambos reciban la misma irradiancia y el mismo ángulo.</p>
 <ul><li><b>Sensor de temperatura.</b> El DS18B20 se pega al respaldo del panel principal con cinta de aluminio para medir la temperatura de la celda.</li>
-<li><b>Electrónica.</b> La PCB v20, el ADS1115, el RTC, la microSD, el módulo de relés y el ESP32 van dentro de un gabinete impreso en 3D en PLA negro, con una tapa blanca, también impresa en 3D, con ranuras y orificios, y dos compartimentos laterales (Figs. 10 y 11).</li>
+<li><b>Electrónica.</b> La PCB v20, el ADS1115, el RTC, la microSD, el módulo de relés y el ESP32 van dentro de un gabinete impreso en 3D en PLA negro, con una tapa blanca, también impresa en 3D, con ranuras y orificios, y dos compartimentos laterales (@@f:gab@@ y @@f:banco@@).</li>
+<li><b>Ubicación de los sensores.</b> El DS18B20 va en el centro del respaldo del panel, para medir la temperatura de las celdas y no la del aire; la celda de referencia, en el mismo plano y con la misma orientación; y la electrónica (ADS1115, divisor, relés), fuera del área iluminada, para que no proyecte sombra ni se caliente al sol.</li>
+<li><b>Pruebas antes de energizar.</b> Con la placa sin alimentación se comprueba con el multímetro que no haya cortos entre 3V3, 5V y GND y que cada pista tenga continuidad; después se conecta el ESP32 y se corre el programa de autotest.</li>
 <li><b>Cableado.</b> Conexiones soldadas en la placa y con terminales de tornillo (J1, J4) para los paneles; los cables de las derivaciones son cortos y los de los paneles van trenzados para reducir el ruido.</li>
-<li><b>Alimentación.</b> Cargador de pared de 5 V/2 A (Fig. 11); un cargador de 1 A o el USB de la computadora no alcanzan cuando se cierran 7–8 relés a la vez.</li></ul>''')
-add(figura(['gabinete.jpg', 'tapa.jpg'], 'Gabinete impreso en 3D en PLA negro (izquierda) y tapa blanca con ranuras, orificios y postes para tornillos (derecha).', True, '48%'))
-add(figura(['banco.jpg', 'prototipo.jpg', 'cargador.jpg'], 'Pruebas de banco con el equipo; placa grabada con el módulo de relés conectado; y el cargador de pared de 5 V utilizado.', True, '31%'))
+<li><b>Alimentación.</b> Cargador de pared de 5 V/2 A (@@f:banco@@); un cargador de 1 A o el USB de la computadora no alcanzan cuando se cierran 7–8 relés a la vez.</li></ul>''')
+add(figura(['gabinete.jpg', 'tapa.jpg'], 'Gabinete impreso en 3D en PLA negro (izquierda) y tapa blanca con ranuras, orificios y postes para tornillos (derecha).', True, '48%', key='gab'))
+add(figura(['banco.jpg', 'prototipo.jpg', 'cargador.jpg'], 'Pruebas de banco con el equipo; placa grabada con el módulo de relés conectado; y el cargador de pared de 5 V utilizado.', True, '31%', key='banco'))
 add('''<p>El estado del montaje se resume así: la placa y las conexiones son firmes y fueron validadas en banco; el gabinete es de PLA negro, que se ablanda hacia 55–60 °C y no es hermético, por lo que para un periodo largo en exterior se requiere una cubierta contra lluvia y la verificación de la coplanaridad de los dos paneles (sección XI).</p>''')
 
 # ---------------- VII
@@ -303,26 +346,27 @@ add('''<h2>VII. Validación y confiabilidad de las mediciones</h2>
 filas = []
 for _, r in val.iterrows():
     filas.append([r['magnitud'], r['unidad_del_error'].replace('%', '%'), fmt(r['error_medio'], 2), fmt(r['desv_est'], 2), fmt(r['error_max_abs'], 2), int(r['n'])])
-add(tabla('Error de las mediciones frente a los instrumentos de referencia', ['Magnitud', 'Unidad del error', 'Error medio', 'Desv. estándar', 'Error máx. abs.', 'n'], filas))
-add('''<p>Todos los errores quedan dentro del presupuesto de la Tabla VII: −0.86 % en V<sub>oc</sub> y +0.84 % en I<sub>sc</sub> (máximos de 1.06 % y 1.20 %), y −0.4 °C en temperatura (máximo de 0.9 °C), dentro de los ±0.5 °C del DS18B20 más la incertidumbre del montaje. El signo constante del error de voltaje indica un error sistemático (tolerancia del divisor y carga del ADS1115) que se corrige con la ganancia de calibración.</p>''')
-add(figura('f_val.png', 'Mediciones del equipo frente a los instrumentos de referencia: V<sub>oc</sub>, I<sub>sc</sub> y temperatura.', False))
-add('<h3>C. Repetibilidad y estabilidad</h3>')
+add(tabla('Error de las mediciones frente a los instrumentos de referencia', ['Magnitud', 'Unidad del error', 'Error medio', 'Desv. estándar', 'Error máx. abs.', 'n'], filas, key='val'))
+add('''<p>Todos los errores quedan dentro del presupuesto de la @@t:err@@: −0.86 % en V<sub>oc</sub> y +0.84 % en I<sub>sc</sub> (máximos de 1.06 % y 1.20 %), y −0.4 °C en temperatura (máximo de 0.9 °C), dentro de los ±0.5 °C del DS18B20 más la incertidumbre del montaje. El signo constante del error de voltaje indica un error sistemático (tolerancia del divisor y carga del ADS1115) que se corrige con la ganancia de calibración.</p>''')
+add(figura('f_val.png', 'Mediciones del equipo frente a los instrumentos de referencia: V<sub>oc</sub>, I<sub>sc</sub> y temperatura.', False, key='val'))
+add('<h3>C. Repetibilidad y estabilidad</h3><p>En una prueba previa de banco con luz de interior constante, dos barridos consecutivos dieron V<sub>oc</sub> = 2.78 V y 2.81 V (CV de 0.76 % con n = 2), que no bastaba para concluir; por eso la jornada incluye diez barridos consecutivos, cuyos resultados se muestran en la tabla siguiente.</p>')
 filas = []
 for _, r in rep.iterrows():
     nombre = {'Isc': 'I<sub>sc</sub> (A)', 'Voc': 'V<sub>oc</sub> (V)', 'Vmp': 'V<sub>mp</sub> (V)', 'Imp': 'I<sub>mp</sub> (A)', 'Pmax': 'P<sub>max</sub> (W)', 'FF': 'FF', 'G': 'G (W/m²)', 'T': 'T (°C)'}[r['magnitud']]
     filas.append([nombre, fmt(r['media'], 4 if r['magnitud'] in ('Isc', 'Imp', 'Pmax', 'FF') else 2), fmt(r['desv_est'], 4), fmt(r['CV_%'], 2), fmt(r['min'], 4 if r['magnitud'] in ('Isc', 'Imp', 'Pmax', 'FF') else 2), fmt(r['max'], 4 if r['magnitud'] in ('Isc', 'Imp', 'Pmax', 'FF') else 2)])
-add(tabla('Repetibilidad de diez barridos consecutivos (mediodía, panel limpio)', ['Magnitud', 'Media', 'Desv. est.', 'CV (%)', 'Mín.', 'Máx.'], filas))
+add(tabla('Repetibilidad de diez barridos consecutivos (mediodía, panel limpio)', ['Magnitud', 'Media', 'Desv. est.', 'CV (%)', 'Mín.', 'Máx.'], filas, key='rep'))
 add('''<p>Los coeficientes de variación son de 0.04 % en I<sub>sc</sub>, 0.10 % en V<sub>oc</sub> y 0.18 % en P<sub>max</sub>, muy por debajo del 10 % del umbral de mantenimiento, de modo que el sistema distingue la suciedad (−12 % de potencia) sin ambigüedad. La irradiancia (CV 0.05 %) y la temperatura (0.29 %) confirman que las condiciones fueron estables durante la prueba.</p>''')
-add(figura('f_rep.png', 'Repetibilidad de los parámetros en diez barridos consecutivos.', False))
+add(figura('f_rep.png', 'Repetibilidad de los parámetros en diez barridos consecutivos.', False, key='rep'))
 add('''<h3>D. Calibración y fuentes de error</h3>
-<p>Procedimiento de calibración: (1) con los relés abiertos se mide el desfase de A2–A3 (autocero); (2) con el panel en circuito abierto se compara V<sub>A0</sub>·4.3 con el multímetro y se ajusta <tt>CAL_V_GANANCIA</tt>; (3) con una carga conocida se compara la caída en la derivación con el multímetro y se ajusta <tt>CAL_I_GANANCIA</tt>; (4) se verifica la temperatura contra el termómetro. Las fuentes de error identificadas son: tolerancias de R1, R2 y R_SH1 (1 %), carga del ADS1115 (0.13 %), resistencia de contacto de los relés (≈0.12 Ω, que desplaza el punto de operación pero no la medición), variación de irradiancia durante el barrido (controlada por el punto de control y G inicio/fin), diferencia entre la celda de referencia y el panel principal (≈1.5 %) y el contacto térmico del DS18B20. De 72 barridos de la jornada, 6 (8 %) se descartaron por nubes pasajeras.</p>''')
+<p>Procedimiento de calibración: (1) con los relés abiertos se mide el desfase de A2–A3 (autocero); (2) con el panel en circuito abierto se compara V<sub>A0</sub>·4.3 con el multímetro y se ajusta <tt>CAL_V_GANANCIA</tt>; (3) con una carga conocida se compara la caída en la derivación con el multímetro y se ajusta <tt>CAL_I_GANANCIA</tt>; (4) se verifica la temperatura contra el termómetro. Las fuentes de error identificadas son: tolerancias de R1, R2 y R_SH1 (1 %), carga del ADS1115 (0.13 %), resistencia de contacto de los relés (≈0.12 Ω, que desplaza el punto de operación pero no la medición), variación de irradiancia durante el barrido (controlada por el punto de control y G inicio/fin), diferencia entre la celda de referencia y el panel principal (≈1.5 %) y el contacto térmico del DS18B20. De 72 barridos de la jornada, 6 (8 %) se descartaron por nubes pasajeras.</p>
+<p>Dos fuentes de error se vieron en las pruebas previas. La primera es la <b>medición no simultánea</b>: en la práctica de campo un solo multímetro midió corriente y tensión en tandas separadas por minutos, con nubes cambiantes (V/I de 237 a 238 Ω en lugar de 220 Ω); el sistema de adquisición mide ambas en el mismo punto y evita ese error. La segunda es la <b>caída de la fuente</b>: en barridos de banco los puntos de carga baja leían cerca de V<sub>oc</sub> porque la alimentación de los relés se hundía cuando varios conmutaban a la vez; se mitigó con el cargador de 5 V/2 A, el asentamiento de 200 ms por punto y el respaldo en la combinación de cargas. Además, la corriente del panel calienta las celdas entre puntos y la irradiancia cambia durante el barrido, por lo que se verifican con el punto de control y G inicio/fin.</p>''')
 
 # ---------------- VIII
 add('''<h2>VIII. Resultados de una jornada de registro continuo</h2>
-<p>La jornada del 3 de noviembre de 2026 (06:00 a 18:00, hora local) se registró con una medición cada 5 s con la carga en el MPP (7 848 mediciones) y un barrido completo cada 10 min (72 barridos, 66 válidos). La Fig. 14 muestra voltaje, corriente, potencia, temperatura e irradiancia: la irradiancia máxima fue de 982 W/m², la temperatura de celda subió de 20 a 63 °C y la potencia máxima medida fue de 0.69 W. Con la carga siguiendo el MPP, la energía de la jornada es 4.7 Wh para una irradiación de 6.5 kWh/m². Las caídas bruscas son nubes pasajeras, y las líneas rojas marcan barridos descartados.</p>''')
-add(figura('f_serie.png', 'Registro continuo de la jornada: V, I, P, temperatura de celda e irradiancia. Las líneas rojas son barridos descartados.', False))
-add('''<p>El PR diario se calcula con los barridos de G ≥ 200 W/m². La Fig. 15 muestra la potencia máxima de cada barrido y el PR corregido por temperatura; con el panel limpio el PR se mantiene en torno al valor de referencia (100 %) y desciende 12 % en la condición de suciedad, por debajo del umbral de alerta de 90 %. La potencia a 1 000 W/m² cae unos 0.68 %/°C, lo que explica que al mediodía, con 62 °C, el panel entregue 0.67 W frente a los 0.88 W de la condición estándar.</p>''')
-add(figura('f_pr.png', 'Potencia máxima por barrido a lo largo del día y performance ratio corregido por temperatura frente al umbral de alerta de 90 %.', False))
+<p>La jornada del 3 de noviembre de 2026 (06:00 a 18:00, hora local) se registró con una medición cada 5 s con la carga en el MPP (7 848 mediciones) y un barrido completo cada 10 min (72 barridos, 66 válidos). La @@f:serie@@ muestra voltaje, corriente, potencia, temperatura e irradiancia: la irradiancia máxima fue de 982 W/m², la temperatura de celda subió de 20 a 63 °C y la potencia máxima medida fue de 0.69 W. Con la carga siguiendo el MPP, la energía de la jornada es 4.7 Wh para una irradiación de 6.5 kWh/m². Las caídas bruscas son nubes pasajeras, y las líneas rojas marcan barridos descartados.</p>''')
+add(figura('f_serie.png', 'Registro continuo de la jornada: V, I, P, temperatura de celda e irradiancia. Las líneas rojas son barridos descartados.', False, key='serie'))
+add('''<p>El PR diario se calcula con los barridos de G ≥ 200 W/m². La @@f:pr@@ muestra la potencia máxima de cada barrido y el PR corregido por temperatura; con el panel limpio el PR se mantiene en torno al valor de referencia (100 %) y desciende 12 % en la condición de suciedad, por debajo del umbral de alerta de 90 %. La potencia a 1 000 W/m² cae unos 0.68 %/°C, lo que explica que al mediodía, con 62 °C, el panel entregue 0.67 W frente a los 0.88 W de la condición estándar.</p>''')
+add(figura('f_pr.png', 'Potencia máxima por barrido a lo largo del día y performance ratio corregido por temperatura frente al umbral de alerta de 90 %.', False, key='pr'))
 
 # ---------------- IX
 bom = [
@@ -338,14 +382,16 @@ tot = sum(c * p for _, _, c, p, _ in bom)
 filas = [[r, d, c, '%.2f' % p, '%.2f' % (c * p), f] for r, d, c, p, f in bom]
 filas.append(['<b>Total</b>', '', '', '', '<b>%.2f</b>' % tot, ''])
 add('''<h2>IX. Lista de materiales y costo</h2>
-<p>La Tabla XI reúne los componentes del sistema. Los precios de ESP32, ADS1115, microSD y RTC son los pagados en Ubuy (con envío e impuestos), el de la placa corresponde al material de la PCB, y los demás se toman de las cotizaciones de Casa Rivas y Steren del Avance 2.</p>''')
-add(tabla('Lista de componentes y costo', ['Ref.', 'Componente', 'Cant.', 'P. unit. (USD)', 'Subtotal (USD)', 'Fuente'], filas, '', True))
+<p>La @@t:bom@@ reúne los componentes del sistema. Los precios de ESP32, ADS1115, microSD y RTC son los pagados en Ubuy (con envío e impuestos), el de la placa corresponde al material de la PCB, y los demás se toman de las cotizaciones de Casa Rivas y Steren del Avance 2.</p>''')
+add(tabla('Lista de componentes y costo', ['Ref.', 'Componente', 'Cant.', 'P. unit. (USD)', 'Subtotal (USD)', 'Fuente'], filas, '', True, key='bom'))
 add('''<p>Los paneles (principal y referencia), el gabinete impreso en 3D, el cargador de 5 V/2 A, el protoboard, los conductores y el multímetro ya eran propiedad del equipo y no se incluyen en el total. El costo de componentes electrónicos del sistema es de USD %.2f.</p>''' % tot)
 
 # ---------------- X
 add('''<h2>X. Bitácora de pruebas</h2>''')
 bit = [
+    ['23 sep', 'Práctica de campo con multímetro (inclinación y orientación, carga de 220 Ω), de 8:40 a 9:51 a. m., con cielo parcialmente nublado; la inclinación de 15° a 30° al sur resulta razonable y se ve que la medición simultánea de V e I importa.'],
     ['12 oct', 'Entrega del Avance 2: diseño del circuito para un módulo de 9 V / 1.5 W, simulación en ngspice y dashboard con datos de demostración.'],
+    ['27–28 oct', 'Prueba de relés y barridos de banco con luz de interior: algunos puntos de baja resistencia leían cerca de V<sub>oc</sub> por la caída de la alimentación de los relés. Se revisó la PCB, se definieron los puentes y las conexiones, y se actualizó el programa con conmutación escalonada.'],
     ['30–31 oct', 'Diseño de la PCB v19 por script y ajuste a los lineamientos del curso (45°, mil, clases de red, nombres en el cobre); PDF para plancha.'],
     ['1–2 nov', 'PCB v20: cada relé con pad NO propio, de modo que resistencias y contactos no comparten orificio. Fabricación por plancha y soldadura de componentes.'],
     ['3 nov', 'PDF de una hoja en tamaño carta para planchar; prueba de la placa con el programa de autotest (I²C, ADS1115, RTC, microSD, relés, Wi-Fi).'],
@@ -369,13 +415,13 @@ add('''<h2>XI. Limitaciones y próximos pasos hacia el modelo predictivo</h2>
 
 add('''<h3 class="cum">Cumplimiento de la rúbrica</h3>''')
 add(tabla('Dónde se cubre cada criterio de la rúbrica', ['Criterio (peso)', 'Evidencia en este documento'], [
-    ['1. Caracterización I-V (10 %)', 'Sección II: curvas I-V y P-V en cinco condiciones, I<sub>sc</sub>, V<sub>oc</sub>, MPP, FF, comparación con el fabricante y efecto de T y G (Figs. 2–3, Tablas I–II)'],
+    ['1. Caracterización I-V (10 %)', 'Sección II: curvas I-V y P-V en cinco condiciones, I<sub>sc</sub>, V<sub>oc</sub>, MPP, FF, comparación con el fabricante y efecto de T y G (@@f:iv@@, @@f:gt@@, @@f:campo@@, @@t:par@@, @@t:cond@@, @@t:campo@@)'],
     ['2. Sensores (10 %)', 'Sección III: tablas comparativas de V/I, temperatura e irradiancia con rango, resolución, precisión, costo y decisión; justificación del RTC y la microSD'],
-    ['3. Acondicionamiento (15 %)', 'Sección IV: esquemático cableado, divisor, derivación, filtro, presupuesto de error y protecciones (Figs. 5–6, Tablas VI–VII)'],
-    ['4. Programación (25 %)', 'Sección V: firmware modular, calibración, filtrado, manejo de errores, hora del RTC, SD y transmisión; datos listos para el modelo (Figs. 8–9, Tabla VIII)'],
-    ['5. Montaje (15 %)', 'Sección VI: gabinete, paneles coplanares a 30° al sur, sensor en el respaldo, alimentación, estado y mejoras (Figs. 10–11)'],
-    ['6. Validación (15 %)', 'Sección VII: error frente a multímetro y termómetro, repetibilidad, estabilidad, calibración y fuentes de error (Figs. 12–13, Tablas IX–X)'],
-    ['7. Documentación (10 %)', 'Esquemático, lista de materiales (Sección IX), fotografías, resultados, bitácora (Sección X), limitaciones y próximos pasos (Sección XI)']], '', True))
+    ['3. Acondicionamiento (15 %)', 'Sección IV: esquemático cableado, divisor, derivación, filtro, presupuesto de error y protecciones (@@f:sch@@, @@f:pot@@, @@t:conex@@, @@t:err@@)'],
+    ['4. Programación (25 %)', 'Sección V: firmware modular, calibración, filtrado, manejo de errores, hora del RTC, SD y transmisión; datos listos para el modelo (@@f:flujo@@, @@f:dash@@, @@t:csv@@)'],
+    ['5. Montaje (15 %)', 'Sección VI: gabinete, paneles coplanares a 30° al sur, sensor en el respaldo, alimentación, estado y mejoras (@@f:gab@@, @@f:banco@@, @@f:fcampo@@)'],
+    ['6. Validación (15 %)', 'Sección VII: error frente a multímetro y termómetro, repetibilidad, estabilidad, calibración y fuentes de error (@@f:val@@, @@f:rep@@, @@t:val@@, @@t:rep@@, @@t:campo@@)'],
+    ['7. Documentación (10 %)', 'Esquemático, lista de materiales (Sección IX), fotografías (incluidas las de campo), resultados, bitácora (Sección X), limitaciones y próximos pasos (Sección XI)']], '', True))
 
 add('</div>')   # cols
 add('''<div class="refs"><h2>Referencias</h2><ol>
@@ -399,7 +445,8 @@ add('''<div class="refs"><h2>Referencias</h2><ol>
 <li>P. L. O. Machado <i>et al.</i>, «A low-cost Arduino-based I–V curve tracer with automated load switching for PV panel characterization», <i>Applied Sciences</i>, vol. 15, n.º 15, art. 8186, 2025.</li>
 <li>Tongling, «JQC-3FF-S-Z: relé de 5 V, 1 polo, 10 A», hoja de datos.</li>
 <li>Docente de la asignatura, «Guía de trabajo — Persona B: Electrónica de adquisición de datos», Semiconductores EE2002, 14 de agosto de 2026.</li>
-<li>Instituto Kriete de Ingeniería y Ciencias, «Rúbrica — Avance: Evaluación del Sistema Físico», 2026.</li></ol></div>''')
+<li>Instituto Kriete de Ingeniería y Ciencias, «Rúbrica — Avance: Evaluación del Sistema Físico», 2026.</li>
+<li>J. Garcilazo, D. Salguero y A. Cortez, «Influencia del ángulo de inclinación y la orientación de un panel solar en la producción de energía», Práctica de laboratorio 3, Semiconductores, 2026.</li></ol></div>''')
 add('</article>')
 
 CSS = '''
@@ -434,7 +481,13 @@ figcaption { font-size: 8pt; text-align: justify; margin-top: 3px; hyphens: auto
 .refs { column-span: all; border-top: .8px solid #000; margin-top: .1in; } .refs h2 { margin-top: .08in; }
 .refs ol { column-count: 2; column-gap: .26in; font-size: 8pt; line-height: 1.17; padding-left: 1.5em; }
 '''
-body_txt = '\n'.join(P).replace('@@TOT@@', '%.2f' % tot).replace('@@KB@@', '%.0f' % tam_kb)
+import re as _re
+def _ref(m):
+    t, k = m.group(1), m.group(2)
+    if t in ('f', 'n'):
+        n = REF['f:' + k]; return ('Fig. %d' % n) if t == 'f' else str(n)
+    n = REF['t:' + k]; return ('Tabla ' + ROMANO[n]) if t == 't' else ROMANO[n]
+body_txt = _re.sub(r'@@([fntr]):(\w+)@@', _ref, '\n'.join(P)).replace('@@TOT@@', '%.2f' % tot).replace('@@KB@@', '%.0f' % tam_kb)
 doc = '<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Avance 3 — Sistema de monitoreo de un panel solar</title><style>%s</style></head><body>%s</body></html>' % (CSS, body_txt)
 ruta = os.path.join(AQUI, 'Avance3.html')
 open(ruta, 'w', encoding='utf-8').write(doc)
