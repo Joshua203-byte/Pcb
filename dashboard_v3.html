@@ -236,17 +236,17 @@
         <div class="card-header"><div><h2>Parametros nominales y alerta</h2><div class="sub">Editables; se usan para G, eficiencia, PR y degradacion</div></div></div>
         <div class="card-body">
           <div class="spec-grid">
-            <div><label class="fld" for="nPmax">Pmax STC (W)</label><input id="nPmax" class="mono" type="number" value="1.5" step="0.1" /></div>
-            <div><label class="fld" for="nVoc">Voc STC (V)</label><input id="nVoc" class="mono" type="number" value="9.0" step="0.1" /></div>
-            <div><label class="fld" for="nIsc">Isc STC (A)</label><input id="nIsc" class="mono" type="number" value="0.212" step="0.001" /></div>
-            <div><label class="fld" for="nVmp">Vmp STC (V)</label><input id="nVmp" class="mono" type="number" value="7.5" step="0.1" /></div>
-            <div><label class="fld" for="nImp">Imp STC (A)</label><input id="nImp" class="mono" type="number" value="0.200" step="0.001" /></div>
-            <div><label class="fld" for="nArea">Area (m&sup2;)</label><input id="nArea" class="mono" type="number" value="0.01035" step="0.0001" /></div>
+            <div><label class="fld" for="nPmax">Pmax STC (W)</label><input id="nPmax" class="mono" type="number" value="0.82" step="0.1" /></div>
+            <div><label class="fld" for="nVoc">Voc STC (V)</label><input id="nVoc" class="mono" type="number" value="6.0" step="0.1" /></div>
+            <div><label class="fld" for="nIsc">Isc STC (A)</label><input id="nIsc" class="mono" type="number" value="0.200" step="0.001" /></div>
+            <div><label class="fld" for="nVmp">Vmp STC (V)</label><input id="nVmp" class="mono" type="number" value="4.82" step="0.1" /></div>
+            <div><label class="fld" for="nImp">Imp STC (A)</label><input id="nImp" class="mono" type="number" value="0.170" step="0.001" /></div>
+            <div><label class="fld" for="nArea">Area (m&sup2;)</label><input id="nArea" class="mono" type="number" value="0.0066" step="0.0001" /></div>
             <div><label class="fld" for="nAlpha">%Isc/&deg;C</label><input id="nAlpha" class="mono" type="number" value="0.05" step="0.01" /></div>
             <div><label class="fld" for="nGamma">%Pmax/&deg;C</label><input id="nGamma" class="mono" type="number" value="-0.4" step="0.01" /></div>
             <div style="grid-column:1/-1"><label class="fld" for="nThr">Umbral de alerta: PR corregido (%)</label><input id="nThr" class="mono" type="number" value="90" step="1" /></div>
           </div>
-          <p class="tiny muted mt" style="margin-bottom:0">Voc = 9 V segun las pruebas del equipo (9.09 V medidos en la practica 3). Isc, Vmp e Imp son estimaciones coherentes con 1.5 W y deben verificarse con el multimetro.</p>
+          <p class="tiny muted mt" style="margin-bottom:0">Voc 6 V e Isc 200 mA: datos del panel que dio el equipo. Vmp, Imp y Pmax salen de un modelo tipico y el area es una estimacion: medi largo x ancho del panel y verifica todo con el multimetro.</p>
         </div>
       </section>
     </div>
@@ -352,7 +352,7 @@
  * POLLING HTTP: POST /sweep/start ; GET /sweep/point -> {v,i,done,temperature,irradiance}
  * ========================================================================== */
 const Q = 1.602176634e-19, KB = 1.380649e-23, G_STC = 1000, T_STC = 25;
-const WS_TIMEOUT = 5000, POLL_MS = 90, POLL_TIMEOUT = 30000, MOCK_DELAY = 110, MOCK_POINTS = 23, NS_CELLS = 15;
+const WS_TIMEOUT = 5000, POLL_MS = 90, POLL_TIMEOUT = 30000, MOCK_DELAY = 110, MOCK_POINTS = 23, NS_CELLS = 12;
 const SCEN = { clean:{deg:1.0,g:1,dT:0}, dirty:{deg:0.885,g:1,dT:0}, severe:{deg:0.75,g:1,dT:0}, cloud:{deg:0.885,g:0.45,dT:-4}, hot:{deg:0.885,g:1,dT:12} };
 
 const S = {
@@ -361,7 +361,7 @@ const S = {
   scenario:"dirty", simH:NaN, tManual:NaN, test:false, liveHist:[], liveKind:"telemetry",
   hist:[],      // barridos de hoy: {ts,h,pmax,vmp,imp,G,T,eff,pr,num,den}
   pastPR:[],    // PR diario de los 29 dias previos (%)
-  nominal:{ pmax:1.5, voc:9.0, isc:0.212, vmp:7.5, imp:0.200, area:0.01035, alphaIsc:0.05, gammaPmax:-0.4, thr:90 },
+  nominal:{ pmax:0.82, voc:6.0, isc:0.200, vmp:4.82, imp:0.170, area:0.0066, alphaIsc:0.05, gammaPmax:-0.4, thr:90 },
 };
 let serverTimer=null, lastSweepN=null, ws=null, connectTimer=null, mockTimer=null, pollTimer=null, pollAbort=null, pendingStart=false;
 const $ = (id) => document.getElementById(id);

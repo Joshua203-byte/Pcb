@@ -197,6 +197,11 @@ El PDF se arma en el espacio de trabajo de Claude con `assemble.py` (reordena y 
 
 ## Registro de cambios (más reciente primero)
 
+### 2026-11-05 (noche) — Datos del panel y herramientas de análisis
+- El equipo informó para el panel **Voc = 6 V e Isc = 200 mA** (cambia lo del Avance 2: 9 V y 0.212 A). Vmp = 4.82 V, Imp = 0.170 A y Pmax = 0.82 W salen del modelo de un diodo (típicos, no medidos); el área (0.0066 m²) es una estimación. Firmware (`ISC_CELDA_REF = 0.200`) y valores por defecto del dashboard actualizados.
+- Nueva carpeta `datos/`: `modelo_panel.py`, `simulador.py` (**datos simulados, rotulados SIMULADO, no entregables como mediciones**) y `analizar.py` (curvas por condición, efecto de G y T, repetibilidad, serie de 12 h, PR y validación). Se pidió simular datos porque no hay sol; se advirtió que los criterios 1, 6 y 7 piden datos reales.
+- `AVANCE3_PLAN.md`: rúbrica → evidencia → estado.
+
 ### 2026-11-05 — Firmware 1.1 (preparación del Avance 3)
 - Rúbrica del Avance 3 (sistema físico): 7 criterios; el de programación pesa 25 %. Mejoras: medición continua opcional cada `MUESTREO_S` s con carga en el punto de máxima potencia, `/muestras.csv` con hora ISO, filtro de promedio recortado, constantes de calibración, verificación y reintento del ADS1115, potencia en los mensajes. `MUESTREO_S` viene en 0.
 - Dashboard: sección En vivo con voltaje, corriente, potencia y temperatura (últimos 10 min); acepta mensajes `sample`.

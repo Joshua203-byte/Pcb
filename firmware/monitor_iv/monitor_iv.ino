@@ -71,7 +71,7 @@ const bool RELE_ACTIVO_BAJO = true;              // solo se usa si RELE_ENTRADA_
 const float DIV_R1 = 33000.0f, DIV_R2 = 10000.0f;   // divisor del voltaje del panel
 const float R_SHUNT     = 1.0f;     // R_SH1 en ohm (1 ohm; si usas dos de 2 ohm en paralelo tambien es 1.0)
 const float R_SHUNT_REF = 1.0f;     // R_SH2 en ohm
-const float ISC_CELDA_REF = 0.212f; // corriente de cortocircuito de la celda de referencia a 1000 W/m2 (A)
+const float ISC_CELDA_REF = 0.200f; // Isc de la celda de referencia a 1000 W/m2 (A): panel de 6 V / 200 mA; medila con multimetro y ajustala
 const float ALFA_ISC = 0.0005f;     // +0.05 %/C
 // Calibracion con multimetro: V_real = V_medido * GANANCIA + OFFSET (en V);  I_real = I_medida * GANANCIA + OFFSET (en A).
 // Se obtienen comparando varias lecturas del dashboard contra el multimetro (ajuste lineal). 1.0 y 0.0 = sin correccion.

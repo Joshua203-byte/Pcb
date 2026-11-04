@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 herramientas/reporte_v20.json
 servidor/datos/
+__pycache__/
+*.pyc
+datos/simulados/
