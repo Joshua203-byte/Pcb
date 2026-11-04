@@ -197,6 +197,11 @@ El PDF se arma en el espacio de trabajo de Claude con `assemble.py` (reordena y 
 
 ## Registro de cambios (más reciente primero)
 
+### 2026-11-04 (tarde) — Barrido de 23/64/164 puntos, validación y gráficas en vivo
+- `BARRIDO_DENSO` 0/1/2 = 23/64/164 puntos (combinaciones de relés elegidas por longitud de arco de la curva I-V con las cargas nominales). El diseño documentado en el Avance sigue siendo **23 puntos** (Machado et al.); 64 y 164 son opcionales y más lentos (hasta ~1 min).
+- Validación del barrido (guía de la Persona B, sec. 2.5): punto de control al final y comparación de G inicio/fin; si cambian más de 5 % el barrido se marca inválido (`valid:false`, columna `valido` en la microSD) y el dashboard no lo guarda.
+- Dashboard v3: sección "En vivo" (voltaje sin carga y temperatura de los últimos 5 min). Relés con pin flotante (módulo a 5 V con lógica de 3.3 V). Firmware y dashboard probados solo con un ESP32 simulado; **sin probar en hardware con sol**.
+
 ### 2026-11-04 — Firmware, servidor y dashboard v3 (primera versión)
 - `firmware/monitor_iv/monitor_iv.ino`: ESP32 con los pines de la PCB v20 (I²C 33/32, relés 16/4/21/22/23/25/26/27, DS18B20 en 14, microSD 5/19/18/17). Barrido de 23 puntos, ADS1115 (A0 ±4.096 V, A2–A3 ±0.512 V, A1 celda de referencia), WebSocket (puerto 81), HTTP (puerto 80), POST opcional al servidor. `MODO_PRUEBA 1` para probar sin sol (±0.256 V); `USAR_DS18B20 0` mientras el sensor no está soldado. **No compilado ni probado en hardware.**
 - `servidor/servidor.py`: recibe POST en `/api/barrido`, guarda CSV y JSONL, sirve el dashboard y `/api/ultimo`, `/api/historial`.

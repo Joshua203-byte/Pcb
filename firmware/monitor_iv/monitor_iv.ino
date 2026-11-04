@@ -67,6 +67,10 @@ const float R_SHUNT_REF = 1.0f;     // R_SH2 en ohm
 const float ISC_CELDA_REF = 0.212f; // corriente de cortocircuito de la celda de referencia a 1000 W/m2 (A)
 const float ALFA_ISC = 0.0005f;     // +0.05 %/C
 const float UMBRAL_CELDA_V = 0.010f; // por debajo de 10 mV en A1 se considera que no hay celda de referencia
+// Validacion del barrido (guia: "registra G al inicio y al final y descarta el barrido si difieren mas de un umbral"):
+// al final se repite la primera combinacion de reles (punto de control) y, si hay celda de referencia, se compara G.
+// Si algo cambia mas de este porcentaje (una nube, por ejemplo), el barrido se marca como invalido.
+const float UMBRAL_VARIACION = 0.05f;
 const uint16_t ESPERA_RELE_MS = 200;  // asentamiento tras cerrar un rele
 #if MODO_PRUEBA
   #define GANANCIA_I GAIN_SIXTEEN     // +-0.256 V sobre R_SH1: 7.8 uV por cuenta (corrientes de mA)
@@ -144,7 +148,8 @@ uint8_t nPuntos = 0, paso = 0;
 bool barriendo = false, barridoListo = false;
 uint32_t tListo = 0, tUltimoBarrido = 0, tTelemetria = 0, tReintento = 0;
 uint8_t pollIdx = 0;
-float tempBarrido = NAN, gBarrido = NAN, tempUltima = NAN;
+float tempBarrido = NAN, gBarrido = NAN, tempUltima = NAN, gInicio = NAN, variacion = 0;
+bool controlFase = false, barridoValido = true;
 uint32_t idBarrido = 0, tsBarrido = 0;
 bool pendienteEnvio = false;
 char buf[320];
@@ -261,12 +266,12 @@ void guardarSD() {
   bool nuevo = !SD.exists("/barridos.csv");
   File f = SD.open("/barridos.csv", FILE_APPEND);
   if (!f) return;
-  if (nuevo) f.println("epoch,barrido,paso,mascara,v_V,i_A,p_W,temperatura_C,irradiancia_Wm2");
+  if (nuevo) f.println("epoch,barrido,paso,mascara,v_V,i_A,p_W,temperatura_C,irradiancia_Wm2,valido");
   for (uint8_t k = 0; k < nPuntos; k++) {
     char t[16], g[16]; fnum(t, sizeof t, tempBarrido, 1); fnum(g, sizeof g, gBarrido, 0);
-    f.printf("%lu,%lu,%u,0x%02X,%.4f,%.5f,%.5f,%s,%s\n", (unsigned long)tsBarrido, (unsigned long)idBarrido, k + 1,
+    f.printf("%lu,%lu,%u,0x%02X,%.4f,%.5f,%.5f,%s,%s,%d\n", (unsigned long)tsBarrido, (unsigned long)idBarrido, k + 1,
              puntos[k].mascara, puntos[k].v, puntos[k].i, puntos[k].v * puntos[k].i,
-             isnan(tempBarrido) ? "" : t, isnan(gBarrido) ? "" : g);
+             isnan(tempBarrido) ? "" : t, isnan(gBarrido) ? "" : g, barridoValido ? 1 : 0);
   }
   f.close();
 #endif
@@ -282,6 +287,7 @@ bool enviarAlServidor() {
   body += ",\"ts\":"; body += tsBarrido;
   body += ",\"temperature\":"; body += t;
   body += ",\"irradiance\":"; body += g;
+  body += ",\"valid\":"; body += barridoValido ? "true" : "false";
   body += ",\"points\":[";
   for (uint8_t k = 0; k < nPuntos; k++) {
     char p[64]; snprintf(p, sizeof p, "%s[%.4f,%.5f]", k ? "," : "", puntos[k].v, puntos[k].i);
@@ -305,6 +311,8 @@ void iniciarBarrido() {
   idBarrido++; tsBarrido = epochActual();
   aplicarMascara(0); autoCero();       // offset del shunt con todo abierto
   tempBarrido = leerTemperatura();
+  gInicio = leerIrradiancia(tempBarrido);
+  controlFase = false; barridoValido = true; variacion = 0;
   snprintf(buf, sizeof buf, "{\"type\":\"sweep_start\",\"points\":%u}", N_PUNTOS);
   ws.broadcastTXT(buf);
   aplicarMascara(MASCARAS[0]);
@@ -322,9 +330,11 @@ void finalizarBarrido() {
   float t2 = leerTemperatura();
   if (!isnan(tempBarrido) && !isnan(t2)) tempBarrido = (tempBarrido + t2) / 2; else if (!isnan(t2)) tempBarrido = t2;
   gBarrido = leerIrradiancia(tempBarrido);
+  barridoValido = variacion <= UMBRAL_VARIACION;
+  if (!isnan(gInicio) && !isnan(gBarrido) && gInicio > 50 && fabsf(gBarrido - gInicio) / gInicio > UMBRAL_VARIACION) barridoValido = false;
   char t[16], g[16]; fnum(t, sizeof t, tempBarrido, 1); fnum(g, sizeof g, gBarrido, 1);
-  snprintf(buf, sizeof buf, "{\"type\":\"sweep_end\",\"temperature\":%s,\"irradiance\":%s,\"ts\":%lu,\"id\":%lu}",
-           t, g, (unsigned long)tsBarrido, (unsigned long)idBarrido);
+  snprintf(buf, sizeof buf, "{\"type\":\"sweep_end\",\"temperature\":%s,\"irradiance\":%s,\"valid\":%s,\"var\":%.3f,\"ts\":%lu,\"id\":%lu}",
+           t, g, barridoValido ? "true" : "false", variacion, (unsigned long)tsBarrido, (unsigned long)idBarrido);
   ws.broadcastTXT(buf);
   guardarSD();
   pendienteEnvio = strlen(SERVER_URL) > 0 && !MODO_PRUEBA;   // en prueba no se ensucia el historial del servidor
@@ -334,6 +344,16 @@ void finalizarBarrido() {
 
 void pasoBarrido() {
   if (!barriendo || (int32_t)(millis() - tListo) < 0) return;
+#if !MODO_PRUEBA
+  if (controlFase) {                    // punto de control: se repite la primera combinacion y se compara la corriente
+    float vc = leerVoltajePanel();
+    float ic = leerCorrientePanel(vc);
+    float i0 = puntos[0].i;
+    variacion = (i0 > 0.005f) ? fabsf(ic - i0) / i0 : 0;   // solo se compara si hay corriente suficiente
+    finalizarBarrido();
+    return;
+  }
+#endif
   Punto& p = puntos[nPuntos];
   p.mascara = MASCARAS[paso];
   p.v = leerVoltajePanel();
@@ -343,8 +363,13 @@ void pasoBarrido() {
   snprintf(buf, sizeof buf, "{\"type\":\"sweep_point\",\"step\":%u,\"mask\":%u,\"v\":%s,\"i\":%s}", nPuntos, p.mascara, v, i);
   ws.broadcastTXT(buf);
   paso++;
-  if (paso >= N_PUNTOS) finalizarBarrido();
-  else { aplicarMascara(MASCARAS[paso]); tListo = millis() + ESPERA_RELE_MS; }
+  if (paso >= N_PUNTOS) {
+#if !MODO_PRUEBA
+    controlFase = true; aplicarMascara(MASCARAS[0]); tListo = millis() + ESPERA_RELE_MS;
+#else
+    finalizarBarrido();
+#endif
+  } else { aplicarMascara(MASCARAS[paso]); tListo = millis() + ESPERA_RELE_MS; }
 }
 
 uint32_t tTemp = 0;

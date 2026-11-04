@@ -116,6 +116,7 @@ class Manejador(BaseHTTPRequestHandler):
         with CANDADO:
             sw = {'n': (BARRIDOS[-1]['n'] + 1) if BARRIDOS else 1, 'ts': ts,
                   'temperature': numero(cuerpo.get('temperature')), 'irradiance': numero(cuerpo.get('irradiance')),
+                  'valid': cuerpo.get('valid', True) is not False,
                   'points': puntos}
             BARRIDOS.append(sw)
             guardar(sw)

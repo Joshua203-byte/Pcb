@@ -53,6 +53,9 @@ El módulo de relés va a 5 V y se activa con LOW; con los 3.3 V del ESP32 un HI
 
 El dashboard dibuja la curva I-V **punto por punto mientras dura el barrido**. Además, en la sección **En vivo** muestra el voltaje del panel (sin carga) y la temperatura de los últimos 5 minutos.
 
+## Validación del barrido (nubes)
+La guía de la Persona B advierte que si el barrido tarda y pasa una nube, el principio y el final de la curva corresponden a luces distintas y la curva no vale. Por eso, en modo real, al terminar los puntos el firmware **repite la primera combinación de relés** (punto de control) y compara la corriente; si hay celda de referencia, compara también G al inicio y al final. Si algo cambia más de `UMBRAL_VARIACION` (5 %), el barrido se marca **inválido**: el dashboard lo muestra con un aviso, no lo guarda en el historial, y en la microSD queda con `valido = 0`.
+
 ## 5. Con servidor (opcional, como pide el proyecto)
 ```bash
 python3 servidor/servidor.py

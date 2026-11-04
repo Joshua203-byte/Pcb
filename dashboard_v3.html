@@ -431,6 +431,7 @@ function enterRealMode(){ S.points=[]; S.metrics=null; S.live=null; S.temperatur
 /* ------------------------------------------------------ SERVIDOR PYTHON (servidor.py) */
 const sweepPts=(sw)=>sw.points.map((p,k)=>({step:k+1,voltage:p[0],current:p[1],power:p[0]*p[1]}));
 function entryFromSweep(sw){
+  if(sw.valid===false) return null;
   const pts=sweepPts(sw), T=isNum(sw.temperature)?sw.temperature:(isNum(S.tManual)?S.tManual:NaN), m=computeMetrics(pts,T);
   const d=m?deriveFor(m,T,isNum(sw.irradiance)?sw.irradiance:NaN):null; if(!m||!d||!isNum(d.G)) return null;
   return { ts:sw.ts*1000, pmax:m.pmax, vmp:m.vmp, imp:m.imp, G:d.G, T:d.T, eff:d.eff, pr:d.pr, num:m.pmax, den:d.den };
@@ -452,7 +453,7 @@ async function connectServer(){
 async function pollServer(){
   try{ const r=await fetch("http://"+hostPort(8000)+"/api/ultimo"); const sw=await r.json(); S.rx++;
     if(!sw||!sw.points||sw.n===lastSweepN){ renderHeader(); return; }
-    lastSweepN=sw.n; showSweep(sw); const e=entryFromSweep(sw); if(e) S.hist.push(e); renderAll(); }catch(err){ S.status="error"; S.error="Se perdio la conexion con el servidor."; renderHeader(); } }
+    lastSweepN=sw.n; if(sw.valid===false){ S.error="Ultimo barrido descartado por cambio de luz (no se guarda en el historial)."; renderHeader(); return; } showSweep(sw); const e=entryFromSweep(sw); if(e) S.hist.push(e); renderAll(); }catch(err){ S.status="error"; S.error="Se perdio la conexion con el servidor."; renderHeader(); } }
 function todayPR() {
   let num=0, den=0; for (const e of S.hist) if (e.G>=200 && isNum(e.den)){ num+=e.num; den+=e.den; }
   return den>0 ? num/den*100 : NaN;
@@ -736,7 +737,9 @@ function handleMessage(raw) {
     case "hello": S.device={firmware:msg.firmware,model:msg.model}; if(msg.test===true && !S.test) setTest(true); if(msg.ads===false) S.error="El ESP32 no encuentra el ADS1115 (revisa SDA/SCL)."; if(isNum(msg.temperature)) S.temperature=msg.temperature; renderAll(); break;
     case "sweep_start": S.irradiance=NaN; S.temperature=NaN; clearCurve(false); S.status="measuring"; S.sweeping=true; S.expected=isNum(msg.points)?msg.points:(isNum(msg.total)?msg.total:0); renderAll(); break;
     case "sweep_point": if(isNum(msg.v)&&isNum(msg.i)) pushPoint({voltage:msg.v,current:msg.i,power:msg.v*msg.i}); break;
-    case "sweep_end": S.temperature=isNum(msg.temperature)?msg.temperature:NaN; S.irradiance=isNum(msg.irradiance)?msg.irradiance:NaN; finishSweep(undefined,msg.metrics); break;
+    case "sweep_end": S.temperature=isNum(msg.temperature)?msg.temperature:NaN; S.irradiance=isNum(msg.irradiance)?msg.irradiance:NaN;
+      if(msg.valid===false){ S.sweeping=false; S.status="connected"; S.error="Barrido descartado: la luz cambio durante el barrido (variacion "+(isNum(msg.var)?(msg.var*100).toFixed(0)+" %":"mayor al umbral")+"). No se guardo en el historial; repetilo."; renderAll(); break; }
+      finishSweep(undefined,msg.metrics); break;
     case "telemetry": S.live={v:msg.v,i:msg.i,p:isNum(msg.p)?msg.p:(isNum(msg.v)&&isNum(msg.i)?msg.v*msg.i:NaN)}; if(isNum(msg.temperature)) S.temperature=msg.temperature; if(isNum(msg.irradiance)) S.irradiance=msg.irradiance;
       S.liveHist.push({t:Date.now(),v:msg.v,T:isNum(msg.temperature)?msg.temperature:NaN}); if(S.liveHist.length>200) S.liveHist.shift();
       renderMetrics(); renderLiveCharts(); renderHeader(); break;
