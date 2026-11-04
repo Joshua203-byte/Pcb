@@ -51,7 +51,7 @@ El módulo de relés va a 5 V y se activa con LOW; con los 3.3 V del ESP32 un HI
 ## Puntos del barrido y gráficas en vivo
 `BARRIDO_DENSO` (solo con `MODO_PRUEBA 0`): **0** = 23 puntos (~8 s), **1** = 64 puntos (~20 s), **2** = 164 puntos (~1 min, viene así). Son combinaciones de relés (hay 255 posibles) elegidas con las cargas nominales (2.2 a 470 Ω) y repartidas a lo largo de la curva. Con más puntos la curva sale más fina, pero el sol puede cambiar durante el barrido. En modo prueba siempre son 23.
 
-El dashboard dibuja la curva I-V **punto por punto mientras dura el barrido**. Además, en la sección **En vivo** muestra el voltaje del panel (sin carga) y la temperatura de los últimos 5 minutos.
+El dashboard dibuja la curva I-V **punto por punto mientras dura el barrido**. En "Seguimiento en el tiempo" muestra la **corriente (Imp e Isc) y el voltaje (Vmp y Voc) a lo largo del día**, un punto por barrido. Además, en la sección **En vivo** muestra el voltaje del panel (sin carga) y la temperatura de los últimos 5 minutos.
 
 ## Validación del barrido (nubes)
 La guía de la Persona B advierte que si el barrido tarda y pasa una nube, el principio y el final de la curva corresponden a luces distintas y la curva no vale. Por eso, en modo real, al terminar los puntos el firmware **repite la primera combinación de relés** (punto de control) y compara la corriente; si hay celda de referencia, compara también G al inicio y al final. Si algo cambia más de `UMBRAL_VARIACION` (5 %), el barrido se marca **inválido**: el dashboard lo muestra con un aviso, no lo guarda en el historial, y en la microSD queda con `valido = 0`.

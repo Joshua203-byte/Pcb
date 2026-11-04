@@ -311,6 +311,12 @@
     <section class="card"><div class="card-header"><div><h2>Irradiancia hoy</h2><div class="sub">W/m&sup2; &middot; celda de referencia coplanar</div></div></div><div class="card-body" id="c_g"></div></section>
     <section class="card"><div class="card-header"><div><h2>Temperatura de celda hoy</h2><div class="sub">&deg;C &middot; DS18B20 adherido al panel</div></div></div><div class="card-body" id="c_t"></div></section>
   </div>
+  <div class="g2b" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+    <section class="card"><div class="card-header"><div><h2>Corriente en el tiempo (hoy)</h2><div class="sub">mA &middot; un punto por barrido: corriente en el punto de maxima potencia (Imp) y corriente maxima medida (Isc)</div></div></div>
+      <div class="card-body"><div class="legend"><span class="li"><span class="sw"></span>Imp</span><span class="li"><span class="sw d"></span>Isc</span></div><div id="c_ci"></div></div></section>
+    <section class="card"><div class="card-header"><div><h2>Voltaje en el tiempo (hoy)</h2><div class="sub">V &middot; un punto por barrido: voltaje en el punto de maxima potencia (Vmp) y en circuito abierto (Voc)</div></div></div>
+      <div class="card-body"><div class="legend"><span class="li"><span class="sw"></span>Vmp</span><span class="li"><span class="sw d"></span>Voc</span></div><div id="c_cv"></div></div></section>
+  </div>
   <div class="g2b">
     <section class="card"><div class="card-header"><div><h2>Eficiencia real vs. nominal</h2><div class="sub">&eta; = Pmax / (G &middot; A) por barrido</div></div></div>
       <div class="card-body"><div class="legend"><span class="li"><span class="sw"></span>&eta; real</span><span class="li"><span class="sw d"></span>&eta; nominal STC</span></div><div id="c_e"></div></div></section>
@@ -411,14 +417,14 @@ function dayStart(){ const d=new Date(); d.setHours(0,0,0,0); return d.getTime()
 function recordHistory(tsOverride) {
   const m=S.metrics, d=derive(); if (!m||!d||!isNum(d.G)) return;
   const ts = tsOverride || Date.now(), dt=new Date(ts);
-  const e={ ts, h: dt.getHours()+dt.getMinutes()/60, pmax:m.pmax, vmp:m.vmp, imp:m.imp, G:d.G, T:d.T, eff:d.eff, pr:d.pr, num:m.pmax, den:d.den };
+  const e={ ts, h: dt.getHours()+dt.getMinutes()/60, pmax:m.pmax, vmp:m.vmp, imp:m.imp, isc:m.isc, voc:m.voc, G:d.G, T:d.T, eff:d.eff, pr:d.pr, num:m.pmax, den:d.den };
   S.hist.push(e);
   if (!S.mock && S.source!=="server") saveEntry(e);
 }
 /* historial real: se guarda en este navegador (modo directo) o viene del servidor */
 const LS_KEY="iv-real-hist";
 function loadStored(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)||"[]"); }catch(e){ return []; } }
-function saveEntry(e){ try{ const l=loadStored(); l.push({ts:e.ts,pmax:e.pmax,vmp:e.vmp,imp:e.imp,G:e.G,T:e.T,eff:e.eff,pr:e.pr,num:e.num,den:e.den}); localStorage.setItem(LS_KEY,JSON.stringify(l.slice(-6000))); }catch(err){} }
+function saveEntry(e){ try{ const l=loadStored(); l.push({ts:e.ts,pmax:e.pmax,vmp:e.vmp,imp:e.imp,isc:e.isc,voc:e.voc,G:e.G,T:e.T,eff:e.eff,pr:e.pr,num:e.num,den:e.den}); localStorage.setItem(LS_KEY,JSON.stringify(l.slice(-6000))); }catch(err){} }
 function rebuildHist(entries){
   const t0=dayStart(), byDay=new Map(); S.hist=[];
   for (const e0 of entries){ const dt=new Date(e0.ts), e=Object.assign({},e0,{h:dt.getHours()+dt.getMinutes()/60});
@@ -434,7 +440,7 @@ function entryFromSweep(sw){
   if(sw.valid===false) return null;
   const pts=sweepPts(sw), T=isNum(sw.temperature)?sw.temperature:(isNum(S.tManual)?S.tManual:NaN), m=computeMetrics(pts,T);
   const d=m?deriveFor(m,T,isNum(sw.irradiance)?sw.irradiance:NaN):null; if(!m||!d||!isNum(d.G)) return null;
-  return { ts:sw.ts*1000, pmax:m.pmax, vmp:m.vmp, imp:m.imp, G:d.G, T:d.T, eff:d.eff, pr:d.pr, num:m.pmax, den:d.den };
+  return { ts:sw.ts*1000, pmax:m.pmax, vmp:m.vmp, imp:m.imp, isc:m.isc, voc:m.voc, G:d.G, T:d.T, eff:d.eff, pr:d.pr, num:m.pmax, den:d.den };
 }
 function showSweep(sw){
   S.points=sweepPts(sw); S.temperature=isNum(sw.temperature)?sw.temperature:(isNum(S.tManual)?S.tManual:NaN); S.tUsed=isNum(sw.temperature)?"sensor":"manual";
@@ -631,6 +637,11 @@ function renderTrends() {
   drawChart("c_g",Object.assign({},common,{ymin:0,ymax:gmax[gmax.length-1],yticks:gmax,ylab:"Irradiancia (W/m²)",yf:v=>nf(v,0),series:ser("G"),last:last&&[last.h,last.G],tip:b=>`${hhmm(b[0])} &middot; ${b[1].toFixed(0)} W/m²`}));
   const tt=niceTicks(Math.min(20,...h.map(e=>e.T))-2,Math.max(...h.map(e=>e.T),40)+2,4);
   drawChart("c_t",Object.assign({},common,{ymin:tt[0],ymax:tt[tt.length-1],yticks:tt,ylab:"T celda (°C)",yf:v=>nf(v,0),series:ser("T"),last:last&&[last.h,last.T],tip:b=>`${hhmm(b[0])} &middot; ${b[1].toFixed(1)} °C`}));
+  const hs2=h.filter(e=>isNum(e.isc)), ci=niceTicks(0,Math.max(10,...hs2.map(e=>e.isc*1000*1.1)),4), cv=niceTicks(0,Math.max(1,...hs2.map(e=>(isNum(e.voc)?e.voc:e.vmp)*1.1)),4), lastc=hs2[hs2.length-1];
+  drawChart("c_ci",{ w:620,h:250,ml:46,xmin:x0,xmax:x1,xticks,xf:v=>v+":00",xlab:"Hora local",ymin:0,ymax:ci[ci.length-1],yticks:ci,ylab:"Corriente (mA)",yf:v=>nf(v,0),
+    series:[{pts:hs2.map(e=>[e.h,e.imp*1000])},{ref:true,pts:hs2.map(e=>[e.h,e.isc*1000])}],last:lastc&&[lastc.h,lastc.imp*1000],tip:b=>`${hhmm(b[0])} &middot; Imp ${b[1].toFixed(1)} mA`});
+  drawChart("c_cv",{ w:620,h:250,ml:46,xmin:x0,xmax:x1,xticks,xf:v=>v+":00",xlab:"Hora local",ymin:0,ymax:cv[cv.length-1],yticks:cv,ylab:"Voltaje (V)",yf:v=>nf(v,1),
+    series:[{pts:hs2.map(e=>[e.h,e.vmp])},{ref:true,pts:hs2.map(e=>[e.h,isNum(e.voc)?e.voc:e.vmp])}],last:lastc&&[lastc.h,lastc.vmp],tip:b=>`${hhmm(b[0])} &middot; Vmp ${b[1].toFixed(2)} V`});
   const effStc=n.pmax/(G_STC*n.area)*100, ee=niceTicks(Math.floor(Math.min(...h.map(e=>e.eff),effStc)-2),Math.ceil(Math.max(...h.map(e=>e.eff),effStc)+1),5);
   drawChart("c_e",{ w:620,h:250,ml:46,xmin:x0,xmax:x1,xticks,xf:v=>v+":00",xlab:"Hora local",ymin:ee[0],ymax:ee[ee.length-1],yticks:ee,ylab:"Eficiencia (%)",yf:v=>nf(v,0),
     hline:effStc,series:ser("eff"),last:last&&[last.h,last.eff],tip:b=>`${hhmm(b[0])} &middot; &eta; real ${b[1].toFixed(1)} % (nominal ${effStc.toFixed(1)} %)`});
