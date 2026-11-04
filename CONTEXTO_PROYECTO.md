@@ -203,7 +203,7 @@ El PDF se arma en el espacio de trabajo de Claude con `assemble.py` (reordena y 
 - Fotos del proceso recibidas: prototipo inicial con Arduino Nano + ACS712 en placa amarilla, placa grabada, placa v20 pintada de verde con RTC y ADS1115, caja y soportes. Sirven para el criterio de sensores (alternativa ACS712 contra ADS1115) y la bitácora.
 
 ### 2026-11-05 (noche) — Datos del panel y herramientas de análisis
-- El equipo informó para el panel **Voc = 6 V e Isc = 200 mA** (cambia lo del Avance 2: 9 V y 0.212 A). Vmp = 4.82 V, Imp = 0.170 A y Pmax = 0.82 W salen del modelo de un diodo (típicos, no medidos); el área (0.0066 m²) es una estimación. Firmware (`ISC_CELDA_REF = 0.200`) y valores por defecto del dashboard actualizados.
+- El equipo informó para el panel **Voc = 6 V e Isc = 200 mA** (cambia lo del Avance 2: 9 V y 0.212 A). Vmp = 4.82 V, Imp = 0.170 A y Pmax = 0.82 W salen del modelo de un diodo (típicos, no medidos); el área del panel es 15 × 7 cm = 0.0105 m² (dato del equipo). Firmware (`ISC_CELDA_REF = 0.200`) y valores por defecto del dashboard actualizados.
 - Nueva carpeta `datos/`: `modelo_panel.py`, `simulador.py` (**datos simulados, rotulados SIMULADO, no entregables como mediciones**) y `analizar.py` (curvas por condición, efecto de G y T, repetibilidad, serie de 12 h, PR y validación). Se pidió simular datos porque no hay sol; se advirtió que los criterios 1, 6 y 7 piden datos reales.
 - `AVANCE3_PLAN.md`: rúbrica → evidencia → estado.
 
