@@ -20,6 +20,8 @@
  * Placa: "ESP32 Dev Module".
  */
 
+#include <Arduino.h>      // tiene que ir primero: define uint8_t, uint32_t, etc. que usa la configuracion
+
 // ============================== CONFIGURACION ==============================
 // ---- Wi-Fi. Si no conecta en 15 s crea su propia red (IP 192.168.4.1) para que puedas probar igual.
 const char* WIFI_SSID = "TU_RED";
@@ -70,7 +72,6 @@ const uint8_t MASCARAS[] = {0x01,0x3C,0xA4,0x78,0xE8,0xC8,0x08,0xF0,0x70,0xB0,0x
 const uint8_t N_PUNTOS = sizeof(MASCARAS);
 // ============================================================================
 
-#include <Arduino.h>
 #include <WiFi.h>
 #include <WebServer.h>
 #include <WebSocketsServer.h>
