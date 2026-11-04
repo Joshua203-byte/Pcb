@@ -5,6 +5,9 @@ Archivos:
 - `dashboard_v3.html`: dashboard; se abre con doble clic (no necesita instalar nada).
 - `servidor/servidor.py`: servidor opcional (guarda los barridos en CSV). Para la prueba de hoy no hace falta.
 
+## 0. Antes de todo: prueba de la PCB (`firmware/prueba_pcb/prueba_pcb.ino`)
+Programa con menú en el monitor serie (115200, "Nueva línea") que revisa por separado I²C (0x48 y 0x68), ADS1115 (voltaje, corriente, referencia), RTC, microSD, los 8 relés y el Wi-Fi. Úsalo primero; cuando todo dé OK, sube `monitor_iv.ino`.
+
 ## 1. Subir el código al ESP32
 1. Arduino IDE → Administrador de placas → instalar **esp32** (Espressif). Placa: **ESP32 Dev Module**.
 2. Administrador de bibliotecas → instalar: **Adafruit ADS1X15**, **RTClib** (Adafruit), **WebSockets** (Markus Sattler). Si el IDE pregunta por dependencias, aceptá "instalar todo".
