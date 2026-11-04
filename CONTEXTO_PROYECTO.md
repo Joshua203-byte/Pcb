@@ -197,6 +197,13 @@ El PDF se arma en el espacio de trabajo de Claude con `assemble.py` (reordena y 
 
 ## Registro de cambios (más reciente primero)
 
+### 2026-11-04 — Firmware, servidor y dashboard v3 (primera versión)
+- `firmware/monitor_iv/monitor_iv.ino`: ESP32 con los pines de la PCB v20 (I²C 33/32, relés 16/4/21/22/23/25/26/27, DS18B20 en 14, microSD 5/19/18/17). Barrido de 23 puntos, ADS1115 (A0 ±4.096 V, A2–A3 ±0.512 V, A1 celda de referencia), WebSocket (puerto 81), HTTP (puerto 80), POST opcional al servidor. `MODO_PRUEBA 1` para probar sin sol (±0.256 V); `USAR_DS18B20 0` mientras el sensor no está soldado. **No compilado ni probado en hardware.**
+- `servidor/servidor.py`: recibe POST en `/api/barrido`, guarda CSV y JSONL, sirve el dashboard y `/api/ultimo`, `/api/historial`.
+- `dashboard_v3.html`: parte de `dashboard_v2.html`; agrega conexión real (WebSocket, HTTP directo o servidor), V/I/P en vivo, temperatura manual, historial real (navegador o servidor) y **modo prueba** (mA/mW, sin PR ni alertas).
+- Corrección: antes se indicó A0 en ±2.048 V, pero con Voc = 9 V llegan 2.09 V a A0; el firmware usa ±4.096 V. Para la derivación se usa ±0.512 V (±0.256 V en modo prueba).
+- Guía: `LEEME_PRUEBAS.md`.
+
 ### 2026-11-02 — PCB v20: pads NO propios
 - Cada cable NO de relé tiene su propio pad y agujero (NO1–NO8, 3.0/1.3 mm) en una fila entre COM y las cargas, unido a RLk por una pista de 60 mil. Antes compartía el agujero con la pata 1 de la resistencia. Los pads de RLk pasan a 2.4/0.9 mm.
 - Todo lo demás es igual a la v19, pero sube 3.81 mm. Placa de 104.8 × 71.1 mm. DRC propio 0 errores, `verificar_brd.py` 0 errores.
