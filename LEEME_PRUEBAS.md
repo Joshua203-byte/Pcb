@@ -48,8 +48,10 @@ El módulo de relés va a 5 V y se activa con LOW; con los 3.3 V del ESP32 un HI
 - Para sol: `MODO_PRUEBA 0` (la corriente pasa a ±0.512 V, hasta 0.5 A) y desmarcá **Modo prueba**.
 - Para el sensor de temperatura: `USAR_DS18B20 1` e instalar **OneWire** y **DallasTemperature**. Hasta entonces, la temperatura se escribe a mano en el dashboard.
 
-## Puntos del barrido
-Con `MODO_PRUEBA 0` y `BARRIDO_DENSO 1` el barrido es de **64 puntos** (unos 20 s), repartidos a lo largo de la curva con 63 combinaciones de relés más el circuito abierto. Con `BARRIDO_DENSO 0`, o en modo prueba, son 23 puntos (unos 8 s). Las combinaciones se calcularon con las cargas nominales (2.2, 4.7, 10, 22, 47, 100, 220, 470 Ω); si tus resistencias son otras, los puntos quedan un poco menos parejos pero funciona igual.
+## Puntos del barrido y gráficas en vivo
+`BARRIDO_DENSO` (solo con `MODO_PRUEBA 0`): **0** = 23 puntos (~8 s), **1** = 64 puntos (~20 s), **2** = 164 puntos (~1 min, viene así). Son combinaciones de relés (hay 255 posibles) elegidas con las cargas nominales (2.2 a 470 Ω) y repartidas a lo largo de la curva. Con más puntos la curva sale más fina, pero el sol puede cambiar durante el barrido. En modo prueba siempre son 23.
+
+El dashboard dibuja la curva I-V **punto por punto mientras dura el barrido**. Además, en la sección **En vivo** muestra el voltaje del panel (sin carga) y la temperatura de los últimos 5 minutos.
 
 ## 5. Con servidor (opcional, como pide el proyecto)
 ```bash

@@ -297,6 +297,14 @@
     </div>
   </div>
 
+  <div id="liveSec" style="display:none">
+    <div class="section-title">En vivo (ultimos 5 min, reles abiertos)</div>
+    <div class="g3" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+      <section class="card"><div class="card-header"><div><h2>Voltaje del panel en vivo</h2><div class="sub">V &middot; sin carga (Voc): sube con la luz y baja al taparlo</div></div></div><div class="card-body" id="c_lv"></div></section>
+      <section class="card"><div class="card-header"><div><h2>Temperatura en vivo</h2><div class="sub">&deg;C &middot; DS18B20</div></div></div><div class="card-body" id="c_lt"></div></section>
+    </div>
+  </div>
+
   <div class="section-title">Seguimiento en el tiempo</div>
   <div class="g3">
     <section class="card"><div class="card-header"><div><h2>Potencia maxima hoy</h2><div class="sub">W &middot; un barrido cada 10 min</div></div></div><div class="card-body" id="c_p"></div></section>
@@ -342,7 +350,7 @@ const SCEN = { clean:{deg:1.0,g:1,dT:0}, dirty:{deg:0.885,g:1,dT:0}, severe:{deg
 const S = {
   status:"idle", source:"mock", mock:true, transport:"websocket", ip:"192.168.4.1",
   points:[], metrics:null, temperature:NaN, irradiance:NaN, live:null, device:{}, rx:0, sweeping:false, expected:0, error:null,
-  scenario:"dirty", simH:NaN, tManual:NaN, test:false,
+  scenario:"dirty", simH:NaN, tManual:NaN, test:false, liveHist:[],
   hist:[],      // barridos de hoy: {ts,h,pmax,vmp,imp,G,T,eff,pr,num,den}
   pastPR:[],    // PR diario de los 29 dias previos (%)
   nominal:{ pmax:1.5, voc:9.0, isc:0.212, vmp:7.5, imp:0.200, area:0.01035, alphaIsc:0.05, gammaPmax:-0.4, thr:90 },
@@ -673,7 +681,19 @@ function renderHeader() {
   $("scenBox").style.display=S.mock?"block":"none";
   if (S.hist.length){ const e=S.hist[S.hist.length-1]; $("lastTs").textContent=new Date(e.ts).toLocaleDateString("es-SV",{day:"numeric",month:"short",year:"numeric"})+" · "+hhmm(e.h); }
 }
-function renderAll(){ renderHeader(); renderMetrics(); renderCurves(); renderTable(); renderDiag(); renderProgress(); renderTrends(); renderAlert(); }
+function renderLiveCharts(){
+  const sec=$("liveSec"); sec.style.display=(S.mock||!S.liveHist.length)?"none":"";
+  if (S.mock||!S.liveHist.length) return;
+  const now=Date.now(), H=S.liveHist.filter(p=>now-p.t<=300000), xt=[-300,-240,-180,-120,-60,0], xf=v=>v===0?"ahora":(v/60)+" min";
+  const pv=H.map(p=>[(p.t-now)/1000,p.v]), pt=H.filter(p=>isNum(p.T)).map(p=>[(p.t-now)/1000,p.T]);
+  const vy=niceTicks(0,Math.max(1,...pv.map(p=>p[1]*1.1)),4);
+  drawChart("c_lv",{ w:520,h:230,ml:46,xmin:-300,xmax:0,xticks:xt,xf,xlab:"Tiempo",ymin:0,ymax:vy[vy.length-1],yticks:vy,ylab:"Voltaje (V)",yf:v=>nf(v,1),series:[{pts:pv}],last:pv.length?pv[pv.length-1]:null,
+    tip:b=>`${Math.abs(Math.round(b[0]))} s atras &middot; ${b[1].toFixed(2)} V` });
+  const lo=pt.length?Math.min(...pt.map(p=>p[1])):20, hi=pt.length?Math.max(...pt.map(p=>p[1])):30, ty=niceTicks(Math.floor(lo-1),Math.ceil(hi+1),4);
+  drawChart("c_lt",{ w:520,h:230,ml:46,xmin:-300,xmax:0,xticks:xt,xf,xlab:"Tiempo",ymin:ty[0],ymax:ty[ty.length-1],yticks:ty,ylab:"Temperatura (C)",yf:v=>nf(v,0),series:[{pts:pt}],last:pt.length?pt[pt.length-1]:null,
+    tip:b=>`${Math.abs(Math.round(b[0]))} s atras &middot; ${b[1].toFixed(1)} C` });
+}
+function renderAll(){ renderHeader(); renderMetrics(); renderCurves(); renderTable(); renderDiag(); renderProgress(); renderTrends(); renderAlert(); renderLiveCharts(); }
 function renderLive(){ renderMetrics(); renderCurves(); renderTable(); renderDiag(); renderProgress(); renderHeader(); }
 
 /* ------------------------------------------------------------------ RED: WS */
@@ -696,7 +716,7 @@ async function connect() {
   ws.onclose=()=>{ ws=null; S.sweeping=false; if(!S.mock){ S.status="idle"; if(!pendingStart) S.error="Conexion con el ESP32 cerrada."; } renderAll(); };
   ws.onerror=()=>{ S.status="error"; S.error="Fallo de red. Verifica que el ESP32 este encendido y en la misma red."; renderHeader(); };
 }
-function disconnect(){ pendingStart=false; stopTimers(); if(!S.mock) S.status="idle"; S.error=null; closeWS(); renderAll(); }
+function disconnect(){ S.liveHist=[]; pendingStart=false; stopTimers(); if(!S.mock) S.status="idle"; S.error=null; closeWS(); renderAll(); }
 
 /* ------------------------------------------------------------- RED: POLLING */
 function startPolling() {
@@ -717,7 +737,9 @@ function handleMessage(raw) {
     case "sweep_start": S.irradiance=NaN; S.temperature=NaN; clearCurve(false); S.status="measuring"; S.sweeping=true; S.expected=isNum(msg.points)?msg.points:(isNum(msg.total)?msg.total:0); renderAll(); break;
     case "sweep_point": if(isNum(msg.v)&&isNum(msg.i)) pushPoint({voltage:msg.v,current:msg.i,power:msg.v*msg.i}); break;
     case "sweep_end": S.temperature=isNum(msg.temperature)?msg.temperature:NaN; S.irradiance=isNum(msg.irradiance)?msg.irradiance:NaN; finishSweep(undefined,msg.metrics); break;
-    case "telemetry": S.live={v:msg.v,i:msg.i,p:isNum(msg.p)?msg.p:(isNum(msg.v)&&isNum(msg.i)?msg.v*msg.i:NaN)}; if(isNum(msg.temperature)) S.temperature=msg.temperature; if(isNum(msg.irradiance)) S.irradiance=msg.irradiance; renderAll(); break;
+    case "telemetry": S.live={v:msg.v,i:msg.i,p:isNum(msg.p)?msg.p:(isNum(msg.v)&&isNum(msg.i)?msg.v*msg.i:NaN)}; if(isNum(msg.temperature)) S.temperature=msg.temperature; if(isNum(msg.irradiance)) S.irradiance=msg.irradiance;
+      S.liveHist.push({t:Date.now(),v:msg.v,T:isNum(msg.temperature)?msg.temperature:NaN}); if(S.liveHist.length>200) S.liveHist.shift();
+      renderMetrics(); renderLiveCharts(); renderHeader(); break;
     case "error": S.error=msg.message||"Error del firmware."; S.sweeping=false; S.status="error"; renderAll(); break;
   }
 }
