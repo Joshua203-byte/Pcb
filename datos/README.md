@@ -20,7 +20,7 @@ python3 datos/analizar.py --barridos barridos.csv --muestras muestras.csv --vali
 Por indicación de la profesora, los datos de campo se generan con simulación asistida por IA, y luego se comparan con lo que cada grupo mida. El modelo se calibra con las mediciones reales del equipo (por ejemplo, la prueba con la luz del teléfono: Isc = 0.28 mA y Voc = 3.81 V).
 ```bash
 python3 datos/simulador.py
-python3 datos/analizar.py --barridos datos/datos_avance3/escenarios/barridos.csv --dia datos/datos_avance3/dia_2026-11-06/barridos.csv \
-  --muestras datos/datos_avance3/dia_2026-11-06/muestras.csv --validacion datos/datos_avance3/escenarios/validacion.csv --salida datos/datos_avance3/salida --pnom 0.88
+python3 datos/analizar.py --barridos datos/datos_avance3/escenarios/barridos.csv --dia datos/datos_avance3/dia_2026-11-03/barridos.csv \
+  --muestras datos/datos_avance3/dia_2026-11-03/muestras.csv --validacion datos/datos_avance3/escenarios/validacion.csv --salida datos/datos_avance3/salida --pnom 0.88
 ```
 Para usar mediciones reales, apuntá `analizar.py` a los CSV de la microSD (mismo formato).

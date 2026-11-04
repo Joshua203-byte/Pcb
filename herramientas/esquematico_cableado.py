@@ -364,23 +364,23 @@ def hoja_principal(red, valores):
 
 def hoja_alimentacion(red, valores):
     """Distribucion de GND / 3V3 / 5V con rieles dibujados con cable. Se genera desde las redes del .sch."""
-    E = Esq(red, valores, (24, 11))
+    E = Esq(red, valores, (14, 7.5))
     redes = {'5V': 24, '3V3': 12, 'GND': 0}
     por_red = {n: sorted([k for k, v in red.items() if v == n]) for n in redes}
     ancho = max(len(v) for v in por_red.values()) * 9.5
     for n, y in redes.items():
         E.cable(n, [(0, y), (ancho, y)])
-        E.txt(-1, y, n, 14, color_red(n), 'right', 'center', 'bold')
+        E.txt(-1, y, n, 18, color_red(n), 'right', 'center', 'bold')
         for i, (comp, pn) in enumerate(por_red[n]):
             x = 4 + i * 9.5
             ycaja = y + 7 if n != 'GND' else y - 7
             E.cable(n, [(x, y), (x, ycaja)])
             E.ax.plot(x, y, 'o', ms=5, color=NEGRO, zorder=6)
             E.pin(comp, pn, (x, ycaja), n)
-            E.txt(x, ycaja + (1.3 if n != 'GND' else -1.3), '%s\n%s' % (comp, pn), 7, '#222222', 'center', 'bottom' if n != 'GND' else 'top')
+            E.txt(x, ycaja + (1.3 if n != 'GND' else -1.3), '%s\n%s' % (comp, pn), 11, '#222222', 'center', 'bottom' if n != 'GND' else 'top')
     # los rieles 5V y 3V3 salen de los puertos de U1 (3V3 regulado por la placa ESP32 desde 5V)
-    E.txt(ancho / 2, 31.5, 'Distribución de alimentación — cada pin conectado al riel de su red (5 V desde USB o J5; 3V3 del regulador del ESP32)', 13, NEGRO, 'center', 'bottom', 'bold')
-    E.ax.set_xlim(-12, ancho + 4); E.ax.set_ylim(-14, 34)
+    E.txt(ancho / 2, 40, 'Distribución de alimentación — cada pin conectado al riel de su red (5 V desde USB o J5; 3V3 del regulador del ESP32)', 14, NEGRO, 'center', 'bottom', 'bold')
+    E.ax.set_xlim(-12, ancho + 4); E.ax.set_ylim(-14, 46)
     E.fig.tight_layout()
     return E
 

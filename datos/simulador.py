@@ -18,10 +18,10 @@ import modelo_panel as mp
 AQUI = os.path.dirname(os.path.abspath(__file__))
 FW = os.path.join(AQUI, '..', 'firmware', 'monitor_iv', 'monitor_iv.ino')
 SALIDA = os.path.join(AQUI, 'datos_avance3')
-DIA = '2026-11-06'
+DIA = '2026-11-03'
 EPOCH_0 = int(np.datetime64(DIA + 'T00:00:00', 's').astype('int64')) + 6 * 3600     # 00:00 hora local (UTC-6) -> UTC
 RL_NOM = np.array([2.2, 4.7, 10, 22, 47, 100, 220, 470])
-SEMILLA = 20261106
+SEMILLA = 20261103
 
 # --------------------------------------------------------------------- cadena de medicion (valores "reales" distintos de los nominales)
 rng = np.random.default_rng(SEMILLA)
