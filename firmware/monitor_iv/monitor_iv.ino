@@ -6,7 +6,7 @@
  * al servidor). 0 = version real para el sol.
  *
  * Que hace:
- *   - Barrido I-V de 23 puntos: cierra las cargas de a una combinacion, espera 200 ms,
+ *   - Barrido I-V de 23 puntos (64 con BARRIDO_DENSO en modo real): cierra las cargas de a una combinacion, espera 200 ms,
  *     mide V (A0 por divisor 33k/10k) e I (A2-A3 por la derivacion R_SH1) con el ADS1115.
  *   - Mide la celda de referencia (A1, derivacion R_SH2) para la irradiancia G.
  *   - DS18B20 (temperatura del panel): ACTIVADO (USAR_DS18B20 1). Pon 0 si no lo tenes conectado.
@@ -34,6 +34,10 @@ const char* SERVER_URL = "";
 // ---- 1 = PRUEBA SIN SOL (luz del telefono): lee corrientes de miliamperios con mas sensibilidad.
 //      0 = REAL (sol): escala normal, irradiancia por la celda de referencia, envio al servidor.
 #define MODO_PRUEBA 0     // <- pon 1 solo si pruebas de noche con la linterna del telefono
+
+// ---- Cantidad de puntos del barrido (solo en modo real, con sol): 1 = 64 puntos (unos 20 s), 0 = 23 puntos (unos 8 s).
+//      En modo prueba (linterna) siempre son 23: con poca luz mas puntos no mejoran la curva.
+#define BARRIDO_DENSO 1
 
 // ---- Que hardware esta conectado
 #define USAR_DS18B20   1      // 1 = DS18B20 conectado en J3 (necesita "OneWire" y "DallasTemperature"); 0 = no conectado
@@ -71,8 +75,18 @@ const uint16_t ESPERA_RELE_MS = 200;  // asentamiento tras cerrar un rele
 #endif
 
 // Combinaciones de reles (bit0 = RL1 ... bit7 = RL8), de menor a mayor voltaje; 0x00 = circuito abierto.
+// Elegidas con los valores nominales de las cargas (2.2, 4.7, 10, 22, 47, 100, 220, 470 ohm) y repartidas a lo largo de la curva I-V.
+#if MODO_PRUEBA || !BARRIDO_DENSO
+// 23 puntos
 const uint8_t MASCARAS[] = {0x01,0x3C,0xA4,0x78,0xE8,0xC8,0x08,0xF0,0x70,0xB0,0x30,0xD0,
                             0x50,0x90,0x10,0xE0,0x60,0xA0,0x20,0xC0,0x40,0x80,0x00};
+#else
+// 64 puntos
+const uint8_t MASCARAS[] = {0xFF,0xFE,0x9A,0x02,0xDC,0x5C,0x9C,0x1C,0xEC,0x6C,0xAC,0x2C,0xCC,0x4C,0x8C,0x0C,
+                            0xF4,0x74,0xB4,0x34,0xD4,0x54,0x94,0x14,0xE4,0x64,0xA4,0x24,0xC4,0x44,0x84,0x04,
+                            0xF8,0x78,0xB8,0x38,0xD8,0x58,0x98,0x18,0xE8,0x68,0xA8,0x28,0xC8,0x48,0x88,0x08,
+                            0xF0,0x70,0xB0,0x30,0xD0,0x50,0x90,0x10,0xE0,0x60,0xA0,0x20,0xC0,0x40,0x80,0x00};
+#endif
 const uint8_t N_PUNTOS = sizeof(MASCARAS);
 // ============================================================================
 
@@ -248,7 +262,7 @@ bool enviarAlServidor() {
   if (WiFi.status() != WL_CONNECTED) return false;
   char t[16], g[16]; fnum(t, sizeof t, tempBarrido, 1); fnum(g, sizeof g, gBarrido, 1);
   String body;
-  body.reserve(1800);
+  body.reserve(3200);
   body += "{\"device\":\"monitor-iv\",\"id\":"; body += idBarrido;
   body += ",\"ts\":"; body += tsBarrido;
   body += ",\"temperature\":"; body += t;

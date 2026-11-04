@@ -48,6 +48,9 @@ El módulo de relés va a 5 V y se activa con LOW; con los 3.3 V del ESP32 un HI
 - Para sol: `MODO_PRUEBA 0` (la corriente pasa a ±0.512 V, hasta 0.5 A) y desmarcá **Modo prueba**.
 - Para el sensor de temperatura: `USAR_DS18B20 1` e instalar **OneWire** y **DallasTemperature**. Hasta entonces, la temperatura se escribe a mano en el dashboard.
 
+## Puntos del barrido
+Con `MODO_PRUEBA 0` y `BARRIDO_DENSO 1` el barrido es de **64 puntos** (unos 20 s), repartidos a lo largo de la curva con 63 combinaciones de relés más el circuito abierto. Con `BARRIDO_DENSO 0`, o en modo prueba, son 23 puntos (unos 8 s). Las combinaciones se calcularon con las cargas nominales (2.2, 4.7, 10, 22, 47, 100, 220, 470 Ω); si tus resistencias son otras, los puntos quedan un poco menos parejos pero funciona igual.
+
 ## 5. Con servidor (opcional, como pide el proyecto)
 ```bash
 python3 servidor/servidor.py
