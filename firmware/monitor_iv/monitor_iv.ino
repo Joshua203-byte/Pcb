@@ -9,7 +9,7 @@
  *   - Barrido I-V de 23 puntos: cierra las cargas de a una combinacion, espera 200 ms,
  *     mide V (A0 por divisor 33k/10k) e I (A2-A3 por la derivacion R_SH1) con el ADS1115.
  *   - Mide la celda de referencia (A1, derivacion R_SH2) para la irradiancia G.
- *   - DS18B20 (temperatura del panel): DESACTIVADO por defecto (USAR_DS18B20 0).
+ *   - DS18B20 (temperatura del panel): ACTIVADO (USAR_DS18B20 1). Pon 0 si no lo tenes conectado.
  *   - Guarda cada barrido en la microSD (CSV) con la hora del RTC DS3231.
  *   - Habla con el dashboard (dashboard_v3.html) por WebSocket (puerto 81) o por HTTP (puerto 80),
  *     y opcionalmente envia cada barrido por HTTP POST a servidor.py (SERVER_URL).
@@ -33,10 +33,10 @@ const char* SERVER_URL = "";
 
 // ---- 1 = PRUEBA SIN SOL (luz del telefono): lee corrientes de miliamperios con mas sensibilidad.
 //      0 = REAL (sol): escala normal, irradiancia por la celda de referencia, envio al servidor.
-#define MODO_PRUEBA 1
+#define MODO_PRUEBA 0     // <- pon 1 solo si pruebas de noche con la linterna del telefono
 
 // ---- Que hardware esta conectado
-#define USAR_DS18B20   0      // 0 = sensor de temperatura NO conectado (se usa la temperatura manual del dashboard)
+#define USAR_DS18B20   1      // 1 = DS18B20 conectado en J3 (necesita "OneWire" y "DallasTemperature"); 0 = no conectado
 #define USAR_RTC       1      // DS3231
 #define USAR_SD        1      // modulo microSD
 #define USAR_CELDA_REF 1      // celda de referencia en J4 (si no hay celda, G sale vacia y el dashboard la estima)
@@ -49,7 +49,10 @@ const int PIN_SDA = 33, PIN_SCL = 32;        // I2C: ADS1115 (0x48) y RTC (0x68)
 const int PIN_DQ  = 14;                      // DS18B20
 const int PIN_SCK = 5, PIN_MISO = 19, PIN_MOSI = 18, PIN_CS = 17;   // microSD
 const uint8_t RELE_PIN[8] = {16, 4, 21, 22, 23, 25, 26, 27};        // IN1..IN8 -> RL1..RL8
-const bool RELE_ACTIVO_BAJO = true;          // la mayoria de los modulos de reles se activan con LOW
+// Los modulos de 8 reles se alimentan a 5 V y se activan con LOW. Con la logica de 3.3 V del ESP32, un HIGH NO alcanza para
+// apagarlos (quedan encendidos y se calientan). Solucion: apagado = pin flotante (INPUT), encendido = OUTPUT en LOW.
+#define RELE_ENTRADA_FLOTANTE 1                  // 1 = lo de arriba (recomendado). 0 = nivel normal con RELE_ACTIVO_BAJO
+const bool RELE_ACTIVO_BAJO = true;              // solo se usa si RELE_ENTRADA_FLOTANTE es 0
 
 // ---- Medicion (pon aqui los valores que midas con el multimetro)
 const float DIV_R1 = 33000.0f, DIV_R2 = 10000.0f;   // divisor del voltaje del panel
@@ -57,6 +60,7 @@ const float R_SHUNT     = 1.0f;     // R_SH1 en ohm (1 ohm; si usas dos de 2 ohm
 const float R_SHUNT_REF = 1.0f;     // R_SH2 en ohm
 const float ISC_CELDA_REF = 0.212f; // corriente de cortocircuito de la celda de referencia a 1000 W/m2 (A)
 const float ALFA_ISC = 0.0005f;     // +0.05 %/C
+const float UMBRAL_CELDA_V = 0.010f; // por debajo de 10 mV en A1 se considera que no hay celda de referencia
 const uint16_t ESPERA_RELE_MS = 200;  // asentamiento tras cerrar un rele
 #if MODO_PRUEBA
   #define GANANCIA_I GAIN_SIXTEEN     // +-0.256 V sobre R_SH1: 7.8 uV por cuenta (corrientes de mA)
@@ -137,18 +141,25 @@ void fijarHora(uint32_t epoch) {
 }
 
 // ---------------------------------------------------------------------- reles
+void releSet(uint8_t k, bool on) {
+#if RELE_ENTRADA_FLOTANTE
+  if (on) { digitalWrite(RELE_PIN[k], LOW); pinMode(RELE_PIN[k], OUTPUT); }
+  else    { pinMode(RELE_PIN[k], INPUT); }
+#else
+  digitalWrite(RELE_PIN[k], on ? (RELE_ACTIVO_BAJO ? LOW : HIGH) : (RELE_ACTIVO_BAJO ? HIGH : LOW));
+#endif
+}
+
 void aplicarMascara(uint8_t m) {
-  for (uint8_t k = 0; k < 8; k++) {
-    bool on = (m >> k) & 1;
-    digitalWrite(RELE_PIN[k], on ? (RELE_ACTIVO_BAJO ? LOW : HIGH) : (RELE_ACTIVO_BAJO ? HIGH : LOW));
-  }
+  for (uint8_t k = 0; k < 8; k++) releSet(k, (m >> k) & 1);
 }
 
 void relesInicio() {
-  for (uint8_t k = 0; k < 8; k++) {      // primero el nivel "apagado" y despues salida: sin pulsos al arrancar
-    digitalWrite(RELE_PIN[k], RELE_ACTIVO_BAJO ? HIGH : LOW);
-    pinMode(RELE_PIN[k], OUTPUT);
-  }
+#if !RELE_ENTRADA_FLOTANTE
+  for (uint8_t k = 0; k < 8; k++) { digitalWrite(RELE_PIN[k], RELE_ACTIVO_BAJO ? HIGH : LOW); pinMode(RELE_PIN[k], OUTPUT); }
+#else
+  aplicarMascara(0);                     // todos apagados desde el primer instante
+#endif
 }
 
 // ------------------------------------------------------------------ mediciones
@@ -159,11 +170,19 @@ float leerVoltajePanel() {            // A0, escala +-4.096 V
   return (s / MUESTRAS) * (DIV_R1 + DIV_R2) / DIV_R2;
 }
 
-float leerCorrientePanel(float v) {   // A2-A3 sobre R_SH1, escala +-0.512 V (+ corriente del divisor)
+float offsetI = 0;                    // voltaje de offset del shunt con los reles abiertos (autocero)
+
+float shuntCrudo() {                  // A2-A3 sobre R_SH1, en volts
   ads.setGain(GANANCIA_I);
   float s = 0;
   for (uint8_t n = 0; n < MUESTRAS; n++) s += ads.computeVolts(ads.readADC_Differential_2_3());
-  float i = (s / MUESTRAS) / R_SHUNT;
+  return s / MUESTRAS;
+}
+
+void autoCero() { offsetI = shuntCrudo(); }   // llamar solo con todos los reles abiertos
+
+float leerCorrientePanel(float v) {   // corriente del panel (shunt sin offset + corriente del divisor)
+  float i = (shuntCrudo() - offsetI) / R_SHUNT;
   if (i < 0) i = 0;
   return i + v / (DIV_R1 + DIV_R2);
 }
@@ -183,7 +202,7 @@ float leerIrradiancia(float temp) {   // A1 sobre R_SH2: corriente de la celda d
   float s = 0;
   for (uint8_t n = 0; n < MUESTRAS; n++) s += ads.computeVolts(ads.readADC_SingleEnded(1));
   float vref = s / MUESTRAS;
-  if (vref < 0.002f) return NAN;      // celda no conectada (A1 queda a GND por R_SH2)
+  if (vref < UMBRAL_CELDA_V) return NAN;   // celda no conectada (A1 queda a GND por R_SH2)
   float T = isnan(temp) ? 25.0f : temp;
   float isc = (vref / R_SHUNT_REF);
   return 1000.0f * isc / (ISC_CELDA_REF * (1.0f + ALFA_ISC * (T - 25.0f)));
@@ -255,6 +274,7 @@ void iniciarBarrido() {
   if (!adsOk) { enviarError("ADS1115 no responde (revisa SDA=33, SCL=32 y la direccion 0x48)."); return; }
   barriendo = true; barridoListo = false; paso = 0; nPuntos = 0; pollIdx = 0;
   idBarrido++; tsBarrido = epochActual();
+  aplicarMascara(0); autoCero();       // offset del shunt con todo abierto
   tempBarrido = leerTemperatura();
   snprintf(buf, sizeof buf, "{\"type\":\"sweep_start\",\"points\":%u}", N_PUNTOS);
   ws.broadcastTXT(buf);
@@ -298,9 +318,19 @@ void pasoBarrido() {
   else { aplicarMascara(MASCARAS[paso]); tListo = millis() + ESPERA_RELE_MS; }
 }
 
+uint32_t tTemp = 0;
+void refrescarTemperatura() {
+#if USAR_DS18B20
+  if (barriendo || millis() - tTemp < 10000) return;
+  tTemp = millis();
+  leerTemperatura();
+#endif
+}
+
 void telemetria() {
   if (barriendo || !adsOk || ws.connectedClients() == 0 || millis() - tTelemetria < 2000) return;
   tTelemetria = millis();
+  autoCero();                          // con los reles abiertos la corriente es 0: se re-calibra el offset
   float v = leerVoltajePanel();
   float i = leerCorrientePanel(v);
   char sv[16], si[16], st[16], sg[16];
@@ -396,6 +426,8 @@ void setup() {
 #if USAR_DS18B20
   sensorT.begin();
   sensorT.setResolution(10);
+  leerTemperatura();
+  Serial.printf("DS18B20: %s\n", isnan(tempUltima) ? "NO RESPONDE (revisa J3, R4 y el puente JP1)" : "OK");
 #endif
   conectarWiFi();
   web.on("/", httpInicio);
@@ -412,6 +444,7 @@ void loop() {
   ws.loop();
   web.handleClient();
   pasoBarrido();
+  refrescarTemperatura();
   telemetria();
   if (!barriendo && AUTO_BARRIDO_S > 0 && millis() - tUltimoBarrido > AUTO_BARRIDO_S * 1000UL) { tUltimoBarrido = millis(); iniciarBarrido(); }
   if (pendienteEnvio && !barriendo && (int32_t)(millis() - tReintento) >= 0) {

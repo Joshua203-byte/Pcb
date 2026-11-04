@@ -8,11 +8,14 @@ Archivos:
 ## 0. Antes de todo: prueba de la PCB (`firmware/prueba_pcb/prueba_pcb.ino`)
 Programa con menú en el monitor serie (115200, "Nueva línea") que revisa por separado I²C (0x48 y 0x68), ADS1115 (voltaje, corriente, referencia), RTC, microSD, los 8 relés y el Wi-Fi. Úsalo primero; cuando todo dé OK, sube `monitor_iv.ino`.
 
+## Relés que se quedan encendidos y se calientan
+El módulo de relés va a 5 V y se activa con LOW; con los 3.3 V del ESP32 un HIGH no lo apaga. Por eso en los dos programas `RELE_ENTRADA_FLOTANTE` está en 1: apagado = pin flotante (INPUT), encendido = LOW. Si con esto ningún relé hace clic, pon `RELE_ENTRADA_FLOTANTE 0` y prueba `RELE_ACTIVO_BAJO` en `true` o `false`.
+
 ## 1. Subir el código al ESP32
 1. Arduino IDE → Administrador de placas → instalar **esp32** (Espressif). Placa: **ESP32 Dev Module**.
 2. Administrador de bibliotecas → instalar: **Adafruit ADS1X15**, **RTClib** (Adafruit), **WebSockets** (Markus Sattler). Si el IDE pregunta por dependencias, aceptá "instalar todo".
 3. Abrí `monitor_iv.ino` (la carpeta debe llamarse `monitor_iv`). En la parte de arriba poné tu Wi-Fi en `WIFI_SSID` y `WIFI_PASS`. Si no tenés Wi-Fi a mano, no cambies nada: el ESP32 crea su propia red.
-4. Dejá `MODO_PRUEBA 1` y `USAR_DS18B20 0` (ya vienen así). Subilo y abrí el Monitor Serie a **115200**.
+4. `MODO_PRUEBA 0` es para sol; ponelo en `1` para probar de noche con la linterna. `USAR_DS18B20 1` necesita las bibliotecas **OneWire** y **DallasTemperature**; si no tenés el sensor conectado, ponelo en `0`. Subilo y abrí el Monitor Serie a **115200**.
 5. El monitor serie muestra `ADS1115: OK`, `RTC DS3231: OK`, `microSD: OK` y la IP. Si algo dice "NO RESPONDE", ese módulo no está bien conectado (el programa sigue funcionando sin RTC ni microSD).
 
 ## 2. Conectar el dashboard

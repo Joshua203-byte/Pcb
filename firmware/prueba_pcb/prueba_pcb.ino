@@ -9,6 +9,7 @@
  *   s = prueba de la microSD (escribe y lee un archivo)
  *   r = probar los 8 reles uno por uno (se oye el clic)
  *   1..8 = cambia el rele k (enciende/apaga)      0 = apaga todos los reles
+ *   d = temperatura del DS18B20
  *   w = prueba de Wi-Fi (busca redes)
  *   x = hace todas las pruebas automaticas (i, a, t, s, w)
  * Librerias: "Adafruit ADS1X15", "RTClib" (Adafruit). SD, SPI y WiFi ya vienen con la placa ESP32.
@@ -19,7 +20,11 @@
 const int PIN_SDA = 33, PIN_SCL = 32;
 const int PIN_SCK = 5, PIN_MISO = 19, PIN_MOSI = 18, PIN_CS = 17;
 const uint8_t RELE_PIN[8] = {16, 4, 21, 22, 23, 25, 26, 27};     // IN1..IN8
-const bool RELE_ACTIVO_BAJO = false;     // pone true si tu modulo se activa con LOW
+// Modulo de reles a 5 V con logica de 3.3 V: un HIGH no los apaga. Apagado = pin flotante (INPUT), encendido = OUTPUT en LOW.
+#define RELE_ENTRADA_FLOTANTE 1
+const bool RELE_ACTIVO_BAJO = true;      // solo si RELE_ENTRADA_FLOTANTE es 0
+const int PIN_DQ = 14;                   // DS18B20
+#define USAR_DS18B20 1                   // 0 si no lo tenes conectado (si es 1: bibliotecas "OneWire" y "DallasTemperature")
 const float DIV = (33000.0f + 10000.0f) / 10000.0f;              // divisor R1/R2 del voltaje del panel
 const float R_SHUNT = 1.0f, R_SHUNT_REF = 1.0f;                  // R_SH1 y R_SH2 (ohm)
 
@@ -29,6 +34,12 @@ const float R_SHUNT = 1.0f, R_SHUNT_REF = 1.0f;                  // R_SH1 y R_SH
 #include <SPI.h>
 #include <SD.h>
 #include <WiFi.h>
+#if USAR_DS18B20
+#include <OneWire.h>
+#include <DallasTemperature.h>
+OneWire oneWire(PIN_DQ);
+DallasTemperature sensorT(&oneWire);
+#endif
 
 Adafruit_ADS1115 ads;
 RTC_DS3231 rtc;
@@ -38,7 +49,12 @@ uint32_t tViva = 0;
 
 void ponerRele(uint8_t k, bool on) {
   releOn[k] = on;
+#if RELE_ENTRADA_FLOTANTE
+  if (on) { digitalWrite(RELE_PIN[k], LOW); pinMode(RELE_PIN[k], OUTPUT); }
+  else    { pinMode(RELE_PIN[k], INPUT); }
+#else
   digitalWrite(RELE_PIN[k], on ? (RELE_ACTIVO_BAJO ? LOW : HIGH) : (RELE_ACTIVO_BAJO ? HIGH : LOW));
+#endif
 }
 
 void todosApagados() { for (uint8_t k = 0; k < 8; k++) ponerRele(k, false); }
@@ -46,7 +62,7 @@ void todosApagados() { for (uint8_t k = 0; k < 8; k++) ponerRele(k, false); }
 void ayuda() {
   Serial.println(F("\n=== PRUEBA DE LA PCB v20 ==="));
   Serial.println(F("h ayuda | i escanear I2C | a ADS1115 | l ADS en vivo | t hora RTC (T = ajustar) | s microSD"));
-  Serial.println(F("r reles uno por uno | 1..8 cambia un rele | 0 apaga todos | w Wi-Fi | x todas las pruebas\n"));
+  Serial.println(F("r reles uno por uno | 1..8 cambia un rele | 0 apaga todos | d DS18B20 | w Wi-Fi | x todas las pruebas\n"));
 }
 
 void escanearI2C() {
@@ -110,7 +126,18 @@ void pruebaReles() {
     ponerRele(k, true); delay(700);
     ponerRele(k, false); delay(300);
   }
-  Serial.println(F("  Listo. Si estan al reves (todos ON en reposo), cambia RELE_ACTIVO_BAJO."));
+  Serial.println(F("  Listo. Si ningun rele hace clic, pone RELE_ENTRADA_FLOTANTE en 0 y proba RELE_ACTIVO_BAJO en true o false."));
+}
+
+void pruebaTemp() {
+#if USAR_DS18B20
+  sensorT.requestTemperatures();
+  float t = sensorT.getTempCByIndex(0);
+  if (t < -100) Serial.println(F("DS18B20: no responde (J3: pin 1 = 3.3 V, pin 2 = DQ/GPIO14, pin 3 = GND; R4 de 4.7k; puente JP1)"));
+  else Serial.printf("DS18B20: %.2f C\n", t);
+#else
+  Serial.println(F("DS18B20 desactivado en el codigo (USAR_DS18B20 0)"));
+#endif
 }
 
 void pruebaWiFi() {
@@ -121,14 +148,15 @@ void pruebaWiFi() {
   for (int i = 0; i < n && i < 8; i++) Serial.printf("  %s  (%d dBm)\n", WiFi.SSID(i).c_str(), WiFi.RSSI(i));
 }
 
-void todo() { escanearI2C(); leerADS(); leerRTC(false); pruebaSD(); pruebaWiFi(); }
+void todo() { escanearI2C(); leerADS(); leerRTC(false); pruebaSD(); pruebaTemp(); pruebaWiFi(); }
 
 void setup() {
-  for (uint8_t k = 0; k < 8; k++) {                         // reles apagados desde el primer instante
-    digitalWrite(RELE_PIN[k], RELE_ACTIVO_BAJO ? HIGH : LOW);
-    pinMode(RELE_PIN[k], OUTPUT);
-  }
+  todosApagados();                                          // reles apagados desde el primer instante
   Serial.begin(115200);
+#if USAR_DS18B20
+  sensorT.begin();
+  sensorT.setResolution(10);
+#endif
   delay(500);
   Wire.begin(PIN_SDA, PIN_SCL);
   adsOk = ads.begin(0x48, &Wire);
@@ -153,6 +181,7 @@ void loop() {
     case 'T': leerRTC(true); break;
     case 's': pruebaSD(); break;
     case 'r': pruebaReles(); break;
+    case 'd': pruebaTemp(); break;
     case 'w': pruebaWiFi(); break;
     case 'x': todo(); break;
     case '0': todosApagados(); Serial.println(F("Todos los reles apagados.")); break;
