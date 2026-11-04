@@ -55,7 +55,7 @@ const uint32_t AUTO_BARRIDO_S = 0;
 //      La carga es la del punto de maxima potencia del ultimo barrido valido (al inicio usa MASCARA_MONITOREO_INICIAL).
 //      Se guarda en la microSD (/muestras.csv) y se transmite al dashboard.
 const uint32_t MUESTREO_S = 0;
-const uint8_t MASCARA_MONITOREO_INICIAL = 0x30;   // RL5 || RL6 (~32 ohm), cerca del punto de maxima potencia nominal
+const uint8_t MASCARA_MONITOREO_INICIAL = 0xF0;   // RL5||RL6||RL7||RL8 (~26.4 ohm): la combinacion mas cercana al punto de maxima potencia nominal (99 % de Pmax)
 
 // ---- Pines de la PCB v20
 const int PIN_SDA = 33, PIN_SCL = 32;        // I2C: ADS1115 (0x48) y RTC (0x68)
