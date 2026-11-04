@@ -169,7 +169,7 @@ add('''<p class="resumen"><b><i>Resumen—Se presenta el sistema físico del mon
 
 # ---------------- I
 add('''<h2>I. Introducción y cambios desde el Avance 2</h2>
-<p>Este documento presenta el estado del sistema físico y responde, apartado por apartado, a los siete criterios de la rúbrica del avance [21]: caracterización I-V, selección de sensores, acondicionamiento de señal, programación y adquisición, montaje, validación y documentación. Parte del diseño del Avance 2 [2], que dimensionó el circuito para un módulo de 9 V y 1.5 W, y lo actualiza con las características del panel realmente instalado y con el hardware construido desde entonces.</p>
+<p>Este documento presenta el estado del sistema físico: la caracterización I-V del panel, la selección de sensores, el circuito de acondicionamiento de señal, la programación y adquisición de datos, el montaje, la validación de las mediciones y la documentación del avance. Parte del diseño del Avance 2 [2], que dimensionó el circuito para un módulo de 9 V y 1.5 W, y lo actualiza con las características del panel realmente instalado y con el hardware construido desde entonces.</p>
 <p>Los cambios principales son:</p>
 <ul><li><b>Panel.</b> Los dos paneles, el principal y el de referencia, son idénticos: 6 V de circuito abierto, 200 mA de cortocircuito, 12 celdas en serie y 15 × 7 cm (0.0105 m²). El Avance 2 suponía 9 V y 1.5 W.</li>
 <li><b>Escalas.</b> Con 6 V el divisor 33 kΩ/10 kΩ entrega 1.4 V a la entrada A0 y la derivación de 1 Ω entrega 0.2 V en cortocircuito (sección IV).</li>
@@ -215,7 +215,7 @@ add('''<h3>E. Desviaciones respecto de los datos del fabricante</h3>
 <p>Las diferencias más grandes aparecen con sombra parcial: V<sub>mp</sub> queda 6.9 % por debajo del modelo y la curva presenta un codo adicional, porque las celdas sombreadas conducen la corriente de las demás a través de su polarización inversa y reducen el voltaje del MPP. Con suciedad (−12 % de luz) la corriente baja 12 % y el voltaje casi no cambia, que es el patrón que usa el dashboard para diagnosticar suciedad frente a sombra.</p>''')
 
 add('''<h3>F. Pruebas de campo con multímetro (23 de septiembre de 2026)</h3>
-<p>Antes de contar con el sistema de adquisición se hizo una práctica de campo [22] en el Instituto Kriete (13.67° N, 89.25° O, unos 920 m s. n. m.), de 8:40 a 9:51 a. m., con cielo soleado y parcialmente nublado, con nubosidad dispersa y cambiante. Se usó un solo multímetro (Astroai DM6000AR) y una carga fija de 220 Ω, la misma resistencia del relé K7 del banco. Se midió la corriente y el voltaje al variar la inclinación del panel orientado al sur (de 0° a 90° en pasos de 15°) y la orientación con 15° de inclinación (en pasos de 45° de azimut). Como había un solo instrumento, primero se midieron todas las corrientes y después todas las tensiones; por eso V e I de un mismo ángulo no son simultáneos. Son datos de referencia reales, tomados con multímetro y no con el sistema de adquisición, y se muestran por separado de los barridos.</p>''')
+<p>Antes de contar con el sistema de adquisición se hizo una práctica de campo [21] en el Instituto Kriete (13.67° N, 89.25° O, unos 920 m s. n. m.), de 8:40 a 9:51 a. m., con cielo soleado y parcialmente nublado, con nubosidad dispersa y cambiante. Se usó un solo multímetro (Astroai DM6000AR) y una carga fija de 220 Ω, la misma resistencia del relé K7 del banco. Se midió la corriente y el voltaje al variar la inclinación del panel orientado al sur (de 0° a 90° en pasos de 15°) y la orientación con 15° de inclinación (en pasos de 45° de azimut). Como había un solo instrumento, primero se midieron todas las corrientes y después todas las tensiones; por eso V e I de un mismo ángulo no son simultáneos. Son datos de referencia reales, tomados con multímetro y no con el sistema de adquisición, y se muestran por separado de los barridos.</p>''')
 filas_i = [[0, 5.652, 23.73], [15, 5.705, 24.11], [30, 5.667, 25.33], [45, 5.602, 25.14], [60, 5.457, 24.56], [75, 5.268, 23.59], [90, 5.046, 22.50]]
 pmax_i = max(v * i / 1000 for _, v, i in filas_i)
 add(tabla('Práctica de campo: efecto de la inclinación (orientación sur, carga de 220 Ω, multímetro)', ['β (°)', 'V (V)', 'I (mA)', 'P = V·I (W)', 'P relativa (%)'],
@@ -231,7 +231,7 @@ add(figura('campo_fotos.jpg', 'Práctica de campo del 23 de septiembre: montaje 
 
 # ---------------- III
 add('''<h2>III. Selección y justificación de sensores</h2>
-<p>Para cada magnitud se comparan las alternativas de la rúbrica con rango, resolución, precisión, ruido y costo, y se documenta la elección. Las resoluciones se calculan para este panel (0.2 A, 6 V).</p>
+<p>Para cada magnitud se comparan las alternativas con rango, resolución, precisión, ruido y costo, y se documenta la elección. Las resoluciones se calculan para este panel (0.2 A, 6 V).</p>
 <h3>A. Voltaje y corriente</h3>''')
 add(tabla('Alternativas para medir voltaje y corriente del panel', ['Opción', 'Rango', 'Resolución aquí', 'Precisión y ruido', 'Costo aprox.', 'Decisión'], [
     ['Divisor + derivación 1 Ω + ADS1115 [3]', 'V: 0–15.5 V; I: ±0.5 A', '0.54 mV y 15.6 µA por cuenta', 'Ganancia 0.15 %; lineal; limitada por tolerancias, calibrable', 'USD 4.68 + resistencias', '<b>Elegido</b>'],
@@ -413,16 +413,6 @@ add('''<h2>XI. Limitaciones y próximos pasos hacia el modelo predictivo</h2>
 <li><b>Calibración.</b> Repetir la calibración de ganancia con multímetro de mayor exactitud y, si es posible, calibrar la celda de referencia contra un piranómetro prestado.</li>
 <li><b>Integración con el modelo.</b> Alimentar el modelo predictivo con las series de P<sub>max</sub>, FF, PR, G y T de cada día, entrenar el detector de degradación con el PR diario y fijar el umbral de alerta con la línea base del panel limpio.</li></ul>''')
 
-add('''<h3 class="cum">Cumplimiento de la rúbrica</h3>''')
-add(tabla('Dónde se cubre cada criterio de la rúbrica', ['Criterio (peso)', 'Evidencia en este documento'], [
-    ['1. Caracterización I-V (10 %)', 'Sección II: curvas I-V y P-V en cinco condiciones, I<sub>sc</sub>, V<sub>oc</sub>, MPP, FF, comparación con el fabricante y efecto de T y G (@@f:iv@@, @@f:gt@@, @@f:campo@@, @@t:par@@, @@t:cond@@, @@t:campo@@)'],
-    ['2. Sensores (10 %)', 'Sección III: tablas comparativas de V/I, temperatura e irradiancia con rango, resolución, precisión, costo y decisión; justificación del RTC y la microSD'],
-    ['3. Acondicionamiento (15 %)', 'Sección IV: esquemático cableado, divisor, derivación, filtro, presupuesto de error y protecciones (@@f:sch@@, @@f:pot@@, @@t:conex@@, @@t:err@@)'],
-    ['4. Programación (25 %)', 'Sección V: firmware modular, calibración, filtrado, manejo de errores, hora del RTC, SD y transmisión; datos listos para el modelo (@@f:flujo@@, @@f:dash@@, @@t:csv@@)'],
-    ['5. Montaje (15 %)', 'Sección VI: gabinete, paneles coplanares a 30° al sur, sensor en el respaldo, alimentación, estado y mejoras (@@f:gab@@, @@f:banco@@, @@f:fcampo@@)'],
-    ['6. Validación (15 %)', 'Sección VII: error frente a multímetro y termómetro, repetibilidad, estabilidad, calibración y fuentes de error (@@f:val@@, @@f:rep@@, @@t:val@@, @@t:rep@@, @@t:campo@@)'],
-    ['7. Documentación (10 %)', 'Esquemático, lista de materiales (Sección IX), fotografías (incluidas las de campo), resultados, bitácora (Sección X), limitaciones y próximos pasos (Sección XI)']], '', True))
-
 add('</div>')   # cols
 add('''<div class="refs"><h2>Referencias</h2><ol>
 <li>J. Garcilazo, D. Salguero y A. Cortez, «Sistema de monitoreo electrónico y modelo predictivo de mantenimiento de un panel solar: primer avance», Semiconductores, 15 de septiembre de 2026.</li>
@@ -445,7 +435,6 @@ add('''<div class="refs"><h2>Referencias</h2><ol>
 <li>P. L. O. Machado <i>et al.</i>, «A low-cost Arduino-based I–V curve tracer with automated load switching for PV panel characterization», <i>Applied Sciences</i>, vol. 15, n.º 15, art. 8186, 2025.</li>
 <li>Tongling, «JQC-3FF-S-Z: relé de 5 V, forma C (SPDT)», hoja de datos (bobina de 5 V, 69 Ω, 0.36 W). Se consultó también la hoja de la familia equivalente Hongfa HF3FF. [En línea]. Disponible: <tt>https://source.hongfa.com/Uploads/Product/PDF/HF3FF_en.pdf</tt></li>
 <li>Docente de la asignatura, «Guía de trabajo — Persona B: Electrónica de adquisición de datos», Semiconductores EE2002, 14 de agosto de 2026.</li>
-<li>Instituto Kriete de Ingeniería y Ciencias, «Rúbrica — Avance: Evaluación del Sistema Físico», 2026.</li>
 <li>J. Garcilazo, D. Salguero y A. Cortez, «Influencia del ángulo de inclinación y la orientación de un panel solar en la producción de energía», Práctica de laboratorio 3, Semiconductores, 2026.</li></ol></div>''')
 add('</article>')
 
