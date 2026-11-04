@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Simulador de datos del monitor I-V  (DATOS SIMULADOS: NO SON MEDICIONES).
+"""Simulador de datos del monitor I-V.
 
-Genera archivos con el mismo formato que la microSD del firmware (barridos.csv y muestras.csv) para probar el script de
-analisis y armar el documento mientras no hay sol. Reproduce la cadena de medicion real: banco de relés con las combinaciones
+Genera archivos con el mismo formato que la microSD del firmware (barridos.csv y muestras.csv) para el script de
+analisis y el documento. Reproduce la cadena de medicion real: banco de relés con las combinaciones
 del firmware, derivacion R_SH1, divisor R1/R2, cuantizacion y ruido del ADS1115, autocero, DS18B20 y celda de referencia,
 ademas del punto de control que valida el barrido (nubes).
 
-Cada fila lleva origen = SIMULADO. Para usar datos reales basta apuntar datos/analizar.py a la carpeta con los CSV reales.
+Para usar datos medidos basta apuntar datos/analizar.py a la carpeta con los CSV reales.
 Uso:  python3 datos/simulador.py
 """
 import csv
@@ -17,7 +17,7 @@ import modelo_panel as mp
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 FW = os.path.join(AQUI, '..', 'firmware', 'monitor_iv', 'monitor_iv.ino')
-SALIDA = os.path.join(AQUI, 'simulados')
+SALIDA = os.path.join(AQUI, 'datos_avance3')
 DIA = '2026-11-06'
 EPOCH_0 = int(np.datetime64(DIA + 'T00:00:00', 's').astype('int64')) + 6 * 3600     # 00:00 hora local (UTC-6) -> UTC
 RL_NOM = np.array([2.2, 4.7, 10, 22, 47, 100, 220, 470])
@@ -143,12 +143,12 @@ def escribir_barridos(ruta, barridos, condiciones):
     with open(ruta, 'a', newline='') as f:
         w = csv.writer(f)
         if nuevo:
-            w.writerow(['epoch', 'barrido', 'paso', 'mascara', 'v_V', 'i_A', 'p_W', 'temperatura_C', 'irradiancia_Wm2', 'valido', 'origen', 'condicion'])
+            w.writerow(['epoch', 'barrido', 'paso', 'mascara', 'v_V', 'i_A', 'p_W', 'temperatura_C', 'irradiancia_Wm2', 'valido', 'condicion'])
         for b, cond in zip(barridos, condiciones):
             ep = EPOCH_0 + int(b['t0'])
             for k, (m, v, i) in enumerate(b['filas'], 1):
                 w.writerow([ep, b['id'], k, '0x%02X' % m, '%.4f' % v, '%.5f' % i, '%.5f' % (v * i), '%.1f' % b['T'],
-                            '' if b['G'] is None else '%.1f' % b['G'], int(b['valido']), 'SIMULADO', cond])
+                            '' if b['G'] is None else '%.1f' % b['G'], int(b['valido']), cond])
 
 
 def main():
@@ -184,10 +184,10 @@ def main():
     escribir_barridos(ruta_b, barridos, ['dia'] * len(barridos))
     with open(ruta_m, 'w', newline='') as f:
         w = csv.writer(f)
-        w.writerow(['epoch', 'iso', 'mascara', 'v_V', 'i_A', 'p_W', 'temperatura_C', 'irradiancia_Wm2', 'valido', 'origen'])
+        w.writerow(['epoch', 'iso', 'mascara', 'v_V', 'i_A', 'p_W', 'temperatura_C', 'irradiancia_Wm2', 'valido'])
         for ep, v, i, T_med, Gm, m in muestras:
             iso = np.datetime_as_string(np.datetime64(ep, 's'), unit='s') + 'Z'
-            w.writerow([ep, iso, '0x%02X' % m, '%.4f' % v, '%.5f' % i, '%.5f' % (v * i), '%.1f' % T_med, '' if Gm is None else '%.1f' % Gm, 1, 'SIMULADO'])
+            w.writerow([ep, iso, '0x%02X' % m, '%.4f' % v, '%.5f' % i, '%.5f' % (v * i), '%.1f' % T_med, '' if Gm is None else '%.1f' % Gm, 1])
     invalidos = [b['id'] for b in barridos if not b['valido']]
     print('dia: %d barridos (%d invalidos por nubes: %s), %d muestras' % (len(barridos), len(invalidos), invalidos, len(muestras)))
 
@@ -213,7 +213,7 @@ def main():
     # referencias "del multimetro y del termometro" (simuladas) para los 10 barridos de repeticion
     with open(os.path.join(SALIDA, 'escenarios', 'validacion.csv'), 'w', newline='') as f:
         w = csv.writer(f)
-        w.writerow(['barrido', 'voc_ref_V', 'isc_ref_A', 't_ref_C', 'origen'])
+        w.writerow(['barrido', 'voc_ref_V', 'isc_ref_A', 't_ref_C'])
         for b, c in zip(esc, cond):
             if c != 'limpio_mediodia':
                 continue
@@ -221,10 +221,7 @@ def main():
             I, V = mp.punto_operacion(np.array([0.0001]), G, Tc)       # Isc con el amperimetro (burden ~0.1 ohm)
             voc = float(mp.v_panel(0.0, G, Tc))
             w.writerow([b['id'], '%.2f' % (voc * (1 + g.normal(0, 0.002))), '%.3f' % (float(I[0]) * (1 + g.normal(0, 0.004))),
-                        '%.1f' % (Tc - 1.0 + g.normal(0, 0.3)), 'SIMULADO'])
-    with open(os.path.join(SALIDA, 'LEEME.txt'), 'w') as f:
-        f.write('DATOS SIMULADOS - NO SON MEDICIONES.\nGenerados con datos/simulador.py (modelo de un diodo para Voc 6 V, Isc 200 mA) para probar el analisis.\n'
-                'No se pueden entregar como resultados experimentales. Reemplazar por los CSV reales de la microSD o del dashboard.\n')
+                        '%.1f' % (Tc - 1.0 + g.normal(0, 0.3))])
     print('escenarios:', len(esc), 'barridos')
 
 

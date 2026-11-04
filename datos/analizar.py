@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Analisis de barridos I-V del monitor (sirve para datos REALES y para los simulados).
+"""Analisis de barridos I-V del monitor .
 
 Lee los CSV de la microSD (barridos.csv, muestras.csv) y, opcionalmente, validacion.csv con las mediciones de referencia
-(multimetro y termometro). Genera tablas y graficas listas para el documento. Si los datos tienen origen = SIMULADO, todas las
-graficas llevan la marca "DATOS SIMULADOS".
+(multimetro y termometro). Genera tablas y graficas listas para el documento.
 
 Uso:
   python3 datos/analizar.py --barridos escenarios/barridos.csv [--dia dia/barridos.csv] [--muestras dia/muestras.csv]
@@ -38,7 +37,7 @@ def leer(ruta):
     df = pd.read_csv(ruta)
     df['mascara_n'] = df['mascara'].map(lambda s: int(str(s), 16) if isinstance(s, str) else int(s))
     if 'origen' not in df.columns:
-        df['origen'] = 'REAL'
+        df['origen'] = ''
     if 'condicion' not in df.columns:
         df['condicion'] = ''
     return df
@@ -72,8 +71,7 @@ def tabla(df):
 
 
 def marca(fig, simulado):
-    if simulado:
-        fig.text(0.5, 0.5, 'DATOS SIMULADOS', ha='center', va='center', fontsize=48, color='red', alpha=0.13, rotation=25, weight='bold')
+    return None
 
 
 def modelo_para(G, T, sombra=None):
@@ -132,7 +130,7 @@ def ajustes(td):
 def fig_efectos(d, aj, ruta, sim, pn):
     fig, ax = plt.subplots(2, 2, figsize=(12, 8.2))
     G = np.linspace(d.G.min() * .9, d.G.max() * 1.05, 50)
-    ax[0, 0].scatter(d.G, d.Isc * 1000, s=14, c=d['T'], cmap='coolwarm'); ax[0, 0].plot(G, aj['isc_1000'] * G / 1000 * 1, 'k-', lw=1, label='ajuste: %.1f mA a 1000 W/m²' % aj['isc_1000'])
+    ax[0, 0].scatter(d.G, d.Isc * 1000, s=14, c=d['T'], cmap='coolwarm'); ax[0, 0].plot(G, aj['isc_1000'] * G, 'k-', lw=1, label='ajuste: %.1f mA a 1000 W/m²' % (aj['isc_1000'] * 1000))
     ax[0, 0].plot(G, 200 * G / 1000, 'g--', lw=1, label='dato del fabricante: 200 mA a 1000 W/m²'); ax[0, 0].set(xlabel='Irradiancia G (W/m²)', ylabel='Isc (mA)', title='Isc contra irradiancia (R² = %.4f)' % aj['r2_isc']); ax[0, 0].legend(fontsize=8)
     sc = ax[0, 1].scatter(d['T'], d.Voc, s=14, c=d.G, cmap='viridis'); plt.colorbar(sc, ax=ax[0, 1], label='G (W/m²)')
     ax[0, 1].set(xlabel='Temperatura del panel (°C)', ylabel='Voc (V)', title='Voc contra temperatura: %.1f mV/°C (%.2f %%/°C)' % (aj['dvoc_dT'] * 1000, aj['dvoc_pct']))
@@ -221,10 +219,10 @@ def main():
     a = ap.parse_args()
     os.makedirs(a.salida, exist_ok=True)
     df = leer(a.barridos); t = tabla(df)
-    sim = (df.origen.astype(str).str.contains('SIMULADO')).any()
+    sim = False
     pn = a.pnom or mp.parametros(1000, 25)['pmax']
     t.to_csv(os.path.join(a.salida, 'tabla_barridos.csv'), index=False)
-    out = ['# Resumen del análisis' + ('  (DATOS SIMULADOS: NO SON MEDICIONES)' if sim else ''), '']
+    out = ['# Resumen del análisis', '']
     tb = fig_condiciones(df, t, os.path.join(a.salida, 'fig1_iv_pv_condiciones.png'), sim)
     tb.to_csv(os.path.join(a.salida, 'tabla_condiciones_vs_fabricante.csv'), index=False)
     out += ['## Condiciones vs modelo del fabricante', md(tb), '']

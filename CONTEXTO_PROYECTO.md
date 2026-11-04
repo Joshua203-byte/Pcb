@@ -197,6 +197,11 @@ El PDF se arma en el espacio de trabajo de Claude con `assemble.py` (reordena y 
 
 ## Registro de cambios (más reciente primero)
 
+### 2026-11-05 (madrugada) — Indicación de la profesora y calibración del modelo
+- La profesora indicó usar IA para simular los datos de campo (nadie puede medir tanto tiempo), no rotularlos como simulados en los entregables y compararlos con lo que cada grupo mida (el que más se parezca gana un punto). Se quitaron las marcas de los archivos y gráficas generados; la carpeta de salida pasó a `datos/datos_avance3/` (ignorada por git).
+- Modelo del panel recalibrado con una medición real (luz del teléfono: Isc 0.28 mA → Voc 3.81 V): n = 1.088, Rsh = 100 kΩ, Rs = 2 Ω. A STC: Vmp 4.74 V, Imp 0.186 A, Pmax 0.88 W, FF 0.73. Con los datos de etiqueta (Isc 200 mA) el PR sale ~100 %; en la realidad suele ser 80-95 %, por lo que conviene ajustar con un Isc real medido.
+- Fotos del proceso recibidas: prototipo inicial con Arduino Nano + ACS712 en placa amarilla, placa grabada, placa v20 pintada de verde con RTC y ADS1115, caja y soportes. Sirven para el criterio de sensores (alternativa ACS712 contra ADS1115) y la bitácora.
+
 ### 2026-11-05 (noche) — Datos del panel y herramientas de análisis
 - El equipo informó para el panel **Voc = 6 V e Isc = 200 mA** (cambia lo del Avance 2: 9 V y 0.212 A). Vmp = 4.82 V, Imp = 0.170 A y Pmax = 0.82 W salen del modelo de un diodo (típicos, no medidos); el área (0.0066 m²) es una estimación. Firmware (`ISC_CELDA_REF = 0.200`) y valores por defecto del dashboard actualizados.
 - Nueva carpeta `datos/`: `modelo_panel.py`, `simulador.py` (**datos simulados, rotulados SIMULADO, no entregables como mediciones**) y `analizar.py` (curvas por condición, efecto de G y T, repetibilidad, serie de 12 h, PR y validación). Se pidió simular datos porque no hay sol; se advirtió que los criterios 1, 6 y 7 piden datos reales.

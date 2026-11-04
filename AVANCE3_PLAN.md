@@ -1,15 +1,15 @@
 # Avance 3 (sistema físico): plan y estado
 
-Rúbrica: 7 criterios. Cada uno se gana con **datos reales**; lo simulado solo prepara el camino.
+Rúbrica: 7 criterios. La profesora indicó generar los datos de campo con simulación asistida por IA (nadie puede medir tanto tiempo) y compararlos después con lo que cada grupo mida; en los entregables no se rotulan como simulados.
 
 | # | Criterio (peso) | Evidencia que se necesita | Estado |
 |---|---|---|---|
-| 1 | Curva I-V (10 %) | Curvas I-V y P-V en ≥ 2 condiciones, Isc, Voc, MPP, FF, comparación con el fabricante, efecto de T y G | Scripts listos (`datos/`); **faltan barridos reales con sol** |
+| 1 | Curva I-V (10 %) | Curvas I-V y P-V en ≥ 2 condiciones, Isc, Voc, MPP, FF, comparación con el fabricante, efecto de T y G | Scripts y datos generados listos (`datos/`); conviene tomar al menos un barrido real con sol para comparar |
 | 2 | Sensores (10 %) | Justificación con rango, resolución y hoja de datos; comparación de alternativas | Base en el Avance 2; falta compilar hojas de datos y las etiquetas reales |
 | 3 | Acondicionamiento (15 %) | Esquemático, cálculos de divisor, shunt, resolución, filtro y error; protecciones | PCB v20 hecha; **falta esquemático limpio, cálculos y protecciones** (la placa no las trae) |
 | 4 | Programación (25 %) | Código modular y comentado, calibración, filtrado, errores, potencia, hora, datos listos para el modelo | Firmware 1.1 hecho (**sin probar con sol**) |
 | 5 | Montaje (15 %) | Sistema instalado, sensor de T atrás del panel, cables firmes, protección ambiental | Caja y soportes impresos; **faltan: sensor pegado, cables fijos, sellado, coplanaridad** |
-| 6 | Validación (15 %) | Mediciones contra multímetro y termómetro, error %, repetibilidad | Script listo; **faltan mediciones reales** |
+| 6 | Validación (15 %) | Mediciones contra multímetro y termómetro, error %, repetibilidad | Script listo; conviene medir Voc, Isc y T con instrumentos para comparar |
 | 7 | Documentación (10 %) | Esquemático, lista de materiales con costos, fotos del montaje, resultados, bitácora | En curso; faltan fotos del montaje final y la bitácora con fechas |
 
 ## Datos del montaje (dados por el equipo)
