@@ -197,6 +197,12 @@ El PDF se arma en el espacio de trabajo de Claude con `assemble.py` (reordena y 
 
 ## Registro de cambios (más reciente primero)
 
+### 2026-11-05 — Firmware 1.1 (preparación del Avance 3)
+- Rúbrica del Avance 3 (sistema físico): 7 criterios; el de programación pesa 25 %. Mejoras: medición continua opcional cada `MUESTREO_S` s con carga en el punto de máxima potencia, `/muestras.csv` con hora ISO, filtro de promedio recortado, constantes de calibración, verificación y reintento del ADS1115, potencia en los mensajes. `MUESTREO_S` viene en 0.
+- Dashboard: sección En vivo con voltaje, corriente, potencia y temperatura (últimos 10 min); acepta mensajes `sample`.
+- Datos del montaje: dos paneles iguales (izquierdo = principal, derecho = referencia), inclinación 30°, soportes impresos en PLA negro (CAD en SolidWorks/STL: soporte, bandeja intermedia, caja inferior). Relés TONGLING JQC-3FF-S-Z 5 V. **Pendiente:** medidas de la caja, sensor de temperatura pegado atrás del panel, comprobar coplanaridad de los dos paneles, datos con sol.
+- En Fusion apareció 1 "Cable de interconexión" en `PCB_ESP32_v20`; el `.sch` y el `.brd` generados coinciden (31 redes, 0 diferencias) y el puente JP1 está bien definido; falta ver cuál es en Fusion.
+
 ### 2026-11-04 (tarde) — Barrido de 23/64/164 puntos, validación y gráficas en vivo
 - `BARRIDO_DENSO` 0/1/2 = 23/64/164 puntos (combinaciones de relés elegidas por longitud de arco de la curva I-V con las cargas nominales). El diseño documentado en el Avance sigue siendo **23 puntos** (Machado et al.); 64 y 164 son opcionales y más lentos (hasta ~1 min).
 - Validación del barrido (guía de la Persona B, sec. 2.5): punto de control al final y comparación de G inicio/fin; si cambian más de 5 % el barrido se marca inválido (`valid:false`, columna `valido` en la microSD) y el dashboard no lo guarda.

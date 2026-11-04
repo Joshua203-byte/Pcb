@@ -56,6 +56,14 @@ El dashboard dibuja la curva I-V **punto por punto mientras dura el barrido**. E
 ## Validación del barrido (nubes)
 La guía de la Persona B advierte que si el barrido tarda y pasa una nube, el principio y el final de la curva corresponden a luces distintas y la curva no vale. Por eso, en modo real, al terminar los puntos el firmware **repite la primera combinación de relés** (punto de control) y compara la corriente; si hay celda de referencia, compara también G al inicio y al final. Si algo cambia más de `UMBRAL_VARIACION` (5 %), el barrido se marca **inválido**: el dashboard lo muestra con un aviso, no lo guarda en el historial, y en la microSD queda con `valido = 0`.
 
+## Medición continua (registro de ~12 horas) y calibración (firmware 1.1)
+- **`MUESTREO_S`** (viene en 0 = apagado): con `MUESTREO_S = 5`, cada 5 s el firmware cierra **una sola carga** unos 0.3 s, mide V, I, T e irradiancia, y la abre (ciclo de trabajo de los relés ~5 %). Usa la carga del punto de máxima potencia del último barrido válido (al arrancar, `MASCARA_MONITOREO_INICIAL`). Los barridos I-V tienen prioridad y se hacen cada `AUTO_BARRIDO_S` (600 = cada 10 min).
+- Cada medición se guarda en la microSD en **`/muestras.csv`** (`epoch, iso, mascara, v_V, i_A, p_W, temperatura_C, irradiancia_Wm2, valido`) y los barridos en `/barridos.csv`. El `iso` es la hora UTC. Las muestras fuera de rango físico se marcan `valido = 0`.
+- El dashboard muestra, en **En vivo**, voltaje, corriente, potencia y temperatura de los últimos 10 minutos.
+- **Filtro:** cada lectura del ADS1115 es un promedio recortado de 8 a 16 muestras (descarta la más alta y la más baja).
+- **Calibración:** `CAL_V_GANANCIA`, `CAL_V_OFFSET`, `CAL_I_GANANCIA`, `CAL_I_OFFSET` (valores 1.0 y 0.0 = sin corrección). Se obtienen comparando varias lecturas del dashboard con el multímetro y ajustando una recta. Además, medí R1, R2, R_SH1 y R_SH2 y ponelas en `DIV_R1`, `DIV_R2`, `R_SHUNT` y `R_SHUNT_REF`.
+- **Errores:** si el ADS1115 deja de responder, se aborta el barrido, se avisa en el dashboard y el firmware reintenta cada 10 s.
+
 ## 5. Con servidor (opcional, como pide el proyecto)
 ```bash
 python3 servidor/servidor.py

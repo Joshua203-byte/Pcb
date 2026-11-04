@@ -50,6 +50,13 @@ const char* SERVER_URL = "";
 // ---- Barrido automatico: cada cuantos segundos (0 = solo cuando lo pides en el dashboard; 600 = cada 10 min)
 const uint32_t AUTO_BARRIDO_S = 0;
 
+// ---- Medicion continua (registro de ~12 h): cada MUESTREO_S segundos se cierra UNA carga ~0.3 s, se miden V, I, T y G y se abre.
+//      0 = apagado.  5 = una medicion cada 5 s (ciclo de trabajo de los reles ~5 %).  Los barridos I-V tienen prioridad.
+//      La carga es la del punto de maxima potencia del ultimo barrido valido (al inicio usa MASCARA_MONITOREO_INICIAL).
+//      Se guarda en la microSD (/muestras.csv) y se transmite al dashboard.
+const uint32_t MUESTREO_S = 0;
+const uint8_t MASCARA_MONITOREO_INICIAL = 0x30;   // RL5 || RL6 (~32 ohm), cerca del punto de maxima potencia nominal
+
 // ---- Pines de la PCB v20
 const int PIN_SDA = 33, PIN_SCL = 32;        // I2C: ADS1115 (0x48) y RTC (0x68)
 const int PIN_DQ  = 14;                      // DS18B20
@@ -66,6 +73,10 @@ const float R_SHUNT     = 1.0f;     // R_SH1 en ohm (1 ohm; si usas dos de 2 ohm
 const float R_SHUNT_REF = 1.0f;     // R_SH2 en ohm
 const float ISC_CELDA_REF = 0.212f; // corriente de cortocircuito de la celda de referencia a 1000 W/m2 (A)
 const float ALFA_ISC = 0.0005f;     // +0.05 %/C
+// Calibracion con multimetro: V_real = V_medido * GANANCIA + OFFSET (en V);  I_real = I_medida * GANANCIA + OFFSET (en A).
+// Se obtienen comparando varias lecturas del dashboard contra el multimetro (ajuste lineal). 1.0 y 0.0 = sin correccion.
+const float CAL_V_GANANCIA = 1.0f, CAL_V_OFFSET = 0.0f;
+const float CAL_I_GANANCIA = 1.0f, CAL_I_OFFSET = 0.0f;
 const float UMBRAL_CELDA_V = 0.010f; // por debajo de 10 mV en A1 se considera que no hay celda de referencia
 // Validacion del barrido (guia: "registra G al inicio y al final y descarta el barrido si difieren mas de un umbral"):
 // al final se repite la primera combinacion de reles (punto de control) y, si hay celda de referencia, se compara G.
@@ -109,6 +120,7 @@ const uint8_t MASCARAS[] = {0xFF,0xAD,0x85,0x05,0xF9,0x79,0xB9,0x39,0xD9,0x59,0x
 const uint8_t N_PUNTOS = sizeof(MASCARAS);
 // ============================================================================
 
+#include <time.h>
 #include <WiFi.h>
 #include <WebServer.h>
 #include <WebSocketsServer.h>
@@ -130,7 +142,7 @@ OneWire oneWire(PIN_DQ);
 DallasTemperature sensorT(&oneWire);
 #endif
 
-#define FW_VERSION "1.0"
+#define FW_VERSION "1.1"
 
 Adafruit_ADS1115 ads;
 WebServer web(80);
@@ -153,11 +165,29 @@ bool controlFase = false, barridoValido = true;
 uint32_t idBarrido = 0, tsBarrido = 0;
 bool pendienteEnvio = false;
 char buf[320];
+uint8_t mascaraMon = MASCARA_MONITOREO_INICIAL;
+bool muestreando = false;
+uint32_t tMuestra = 0, tListoMuestra = 0, tReintentoADS = 0;
 
 // ------------------------------------------------------------------ utilidades
 static void fnum(char* out, size_t n, float x, int d) {
   if (isnan(x) || isinf(x)) snprintf(out, n, "null"); else snprintf(out, n, "%.*f", d, x);
 }
+
+// promedio recortado: descarta la lectura mas alta y la mas baja (rechaza picos de ruido)
+static float promedioRobusto(const float* a, uint8_t n) {
+  float s = 0, mn = a[0], mx = a[0];
+  for (uint8_t k = 0; k < n; k++) { s += a[k]; if (a[k] < mn) mn = a[k]; if (a[k] > mx) mx = a[k]; }
+  return n >= 4 ? (s - mn - mx) / (n - 2) : s / n;
+}
+
+static void isoDesdeEpoch(uint32_t e, char* out, size_t n) {   // "2026-11-04T07:22:03Z" (UTC); vacio si no hay hora
+  if (e == 0) { out[0] = 0; return; }
+  time_t t = (time_t)e; struct tm tmv; gmtime_r(&t, &tmv);
+  strftime(out, n, "%Y-%m-%dT%H:%M:%SZ", &tmv);
+}
+
+bool adsResponde() { Wire.beginTransmission(0x48); return Wire.endTransmission() == 0; }
 
 uint32_t epochActual() {
 #if USAR_RTC
@@ -197,26 +227,27 @@ void relesInicio() {
 }
 
 // ------------------------------------------------------------------ mediciones
-float leerVoltajePanel() {            // A0, escala +-4.096 V
+float leerVoltajePanel() {            // A0, escala +-4.096 V, con calibracion
   ads.setGain(GAIN_ONE);
-  float s = 0;
-  for (uint8_t n = 0; n < MUESTRAS; n++) s += ads.computeVolts(ads.readADC_SingleEnded(0));
-  return (s / MUESTRAS) * (DIV_R1 + DIV_R2) / DIV_R2;
+  float m[MUESTRAS];
+  for (uint8_t n = 0; n < MUESTRAS; n++) m[n] = ads.computeVolts(ads.readADC_SingleEnded(0));
+  float v = promedioRobusto(m, MUESTRAS) * (DIV_R1 + DIV_R2) / DIV_R2 * CAL_V_GANANCIA + CAL_V_OFFSET;
+  return v < 0 ? 0 : v;
 }
 
 float offsetI = 0;                    // voltaje de offset del shunt con los reles abiertos (autocero)
 
 float shuntCrudo() {                  // A2-A3 sobre R_SH1, en volts
   ads.setGain(GANANCIA_I);
-  float s = 0;
-  for (uint8_t n = 0; n < MUESTRAS; n++) s += ads.computeVolts(ads.readADC_Differential_2_3());
-  return s / MUESTRAS;
+  float m[MUESTRAS];
+  for (uint8_t n = 0; n < MUESTRAS; n++) m[n] = ads.computeVolts(ads.readADC_Differential_2_3());
+  return promedioRobusto(m, MUESTRAS);
 }
 
 void autoCero() { offsetI = shuntCrudo(); }   // llamar solo con todos los reles abiertos
 
 float leerCorrientePanel(float v) {   // corriente del panel (shunt sin offset + corriente del divisor)
-  float i = (shuntCrudo() - offsetI) / R_SHUNT;
+  float i = ((shuntCrudo() - offsetI) / R_SHUNT) * CAL_I_GANANCIA + CAL_I_OFFSET;
   if (i < 0) i = 0;
   return i + v / (DIV_R1 + DIV_R2);
 }
@@ -233,9 +264,9 @@ float leerTemperatura() {
 float leerIrradiancia(float temp) {   // A1 sobre R_SH2: corriente de la celda de referencia
 #if USAR_CELDA_REF && !MODO_PRUEBA
   ads.setGain(GAIN_EIGHT);
-  float s = 0;
-  for (uint8_t n = 0; n < MUESTRAS; n++) s += ads.computeVolts(ads.readADC_SingleEnded(1));
-  float vref = s / MUESTRAS;
+  float m[MUESTRAS];
+  for (uint8_t n = 0; n < MUESTRAS; n++) m[n] = ads.computeVolts(ads.readADC_SingleEnded(1));
+  float vref = promedioRobusto(m, MUESTRAS);
   if (vref < UMBRAL_CELDA_V) return NAN;   // celda no conectada (A1 queda a GND por R_SH2)
   float T = isnan(temp) ? 25.0f : temp;
   float isc = (vref / R_SHUNT_REF);
@@ -249,8 +280,8 @@ float leerIrradiancia(float temp) {   // A1 sobre R_SH2: corriente de la celda d
 void enviarHello(int8_t num) {
   char t[16]; fnum(t, sizeof t, tempUltima, 1);
   snprintf(buf, sizeof buf, "{\"type\":\"hello\",\"firmware\":\"%s\",\"model\":\"ESP32 + ADS1115 (PCB v20)\",\"temperature\":%s,"
-           "\"ads\":%s,\"rtc\":%s,\"sd\":%s,\"test\":%s}", FW_VERSION, t, adsOk ? "true" : "false", rtcOk ? "true" : "false", sdOk ? "true" : "false",
-           MODO_PRUEBA ? "true" : "false");
+           "\"ads\":%s,\"rtc\":%s,\"sd\":%s,\"test\":%s,\"cont\":%lu}", FW_VERSION, t, adsOk ? "true" : "false", rtcOk ? "true" : "false", sdOk ? "true" : "false",
+           MODO_PRUEBA ? "true" : "false", (unsigned long)MUESTREO_S);
   if (num >= 0) ws.sendTXT(num, buf); else ws.broadcastTXT(buf);
 }
 
@@ -306,7 +337,8 @@ bool enviarAlServidor() {
 // ---------------------------------------------------------------------- barrido
 void iniciarBarrido() {
   if (barriendo) return;
-  if (!adsOk) { enviarError("ADS1115 no responde (revisa SDA=33, SCL=32 y la direccion 0x48)."); return; }
+  if (!adsOk || !adsResponde()) { adsOk = false; enviarError("ADS1115 no responde (revisa SDA=33, SCL=32 y la direccion 0x48)."); return; }
+  muestreando = false;
   barriendo = true; barridoListo = false; paso = 0; nPuntos = 0; pollIdx = 0;
   idBarrido++; tsBarrido = epochActual();
   aplicarMascara(0); autoCero();       // offset del shunt con todo abierto
@@ -332,6 +364,10 @@ void finalizarBarrido() {
   gBarrido = leerIrradiancia(tempBarrido);
   barridoValido = variacion <= UMBRAL_VARIACION;
   if (!isnan(gInicio) && !isnan(gBarrido) && gInicio > 50 && fabsf(gBarrido - gInicio) / gInicio > UMBRAL_VARIACION) barridoValido = false;
+  if (barridoValido) {                  // la carga de monitoreo pasa a ser la del punto de maxima potencia
+    float pm = 0;
+    for (uint8_t k = 0; k < nPuntos; k++) if (puntos[k].mascara != 0 && puntos[k].v * puntos[k].i > pm) { pm = puntos[k].v * puntos[k].i; mascaraMon = puntos[k].mascara; }
+  }
   char t[16], g[16]; fnum(t, sizeof t, tempBarrido, 1); fnum(g, sizeof g, gBarrido, 1);
   snprintf(buf, sizeof buf, "{\"type\":\"sweep_end\",\"temperature\":%s,\"irradiance\":%s,\"valid\":%s,\"var\":%.3f,\"ts\":%lu,\"id\":%lu}",
            t, g, barridoValido ? "true" : "false", variacion, (unsigned long)tsBarrido, (unsigned long)idBarrido);
@@ -354,13 +390,19 @@ void pasoBarrido() {
     return;
   }
 #endif
+  if (!adsResponde()) {                 // el ADS dejo de responder en medio del barrido
+    abortarBarrido(); adsOk = false;
+    enviarError("Se perdio la comunicacion con el ADS1115 durante el barrido (revisa el cableado I2C).");
+    return;
+  }
   Punto& p = puntos[nPuntos];
   p.mascara = MASCARAS[paso];
   p.v = leerVoltajePanel();
   p.i = leerCorrientePanel(p.v);
   nPuntos++;
   char v[16], i[16]; fnum(v, sizeof v, p.v, 4); fnum(i, sizeof i, p.i, 5);
-  snprintf(buf, sizeof buf, "{\"type\":\"sweep_point\",\"step\":%u,\"mask\":%u,\"v\":%s,\"i\":%s}", nPuntos, p.mascara, v, i);
+  char pw[16]; fnum(pw, sizeof pw, p.v * p.i, 5);
+  snprintf(buf, sizeof buf, "{\"type\":\"sweep_point\",\"step\":%u,\"mask\":%u,\"v\":%s,\"i\":%s,\"p\":%s}", nPuntos, p.mascara, v, i, pw);
   ws.broadcastTXT(buf);
   paso++;
   if (paso >= N_PUNTOS) {
@@ -372,16 +414,58 @@ void pasoBarrido() {
   } else { aplicarMascara(MASCARAS[paso]); tListo = millis() + ESPERA_RELE_MS; }
 }
 
+// --------------------------------------------------------------- medicion continua
+void guardarMuestraSD(uint32_t ts, uint8_t mascara, float v, float i, float t, float g, bool valida) {
+#if USAR_SD
+  if (!sdOk) return;
+  bool nuevo = !SD.exists("/muestras.csv");
+  File f = SD.open("/muestras.csv", FILE_APPEND);
+  if (!f) return;
+  if (nuevo) f.println("epoch,iso,mascara,v_V,i_A,p_W,temperatura_C,irradiancia_Wm2,valido");
+  char iso[24], st[16], sg[16];
+  isoDesdeEpoch(ts, iso, sizeof iso); fnum(st, sizeof st, t, 1); fnum(sg, sizeof sg, g, 1);
+  f.printf("%lu,%s,0x%02X,%.4f,%.5f,%.5f,%s,%s,%d\n", (unsigned long)ts, iso, mascara, v, i, v * i,
+           isnan(t) ? "" : st, isnan(g) ? "" : sg, valida ? 1 : 0);
+  f.close();
+#endif
+}
+
+void iniciarMuestra() {
+  if (!adsResponde()) { adsOk = false; enviarError("ADS1115 no responde (medicion continua detenida hasta que vuelva)."); return; }
+  aplicarMascara(0); autoCero();        // offset del shunt con todo abierto
+  aplicarMascara(mascaraMon);
+  muestreando = true; tListoMuestra = millis() + ESPERA_RELE_MS;
+}
+
+void pasoMuestra() {
+  if (!muestreando || (int32_t)(millis() - tListoMuestra) < 0) return;
+  float v = leerVoltajePanel();
+  float i = leerCorrientePanel(v);
+  aplicarMascara(0);
+  muestreando = false;
+  float g = leerIrradiancia(tempUltima);
+  bool ok = v >= 0 && v < 16.0f && i >= 0 && i < 0.6f;   // rango fisico esperado; fuera de el, la muestra se marca invalida
+  uint32_t ts = epochActual();
+  guardarMuestraSD(ts, mascaraMon, v, i, tempUltima, g, ok);
+  char sv[16], si[16], sp[16], st[16], sg[16];
+  fnum(sv, sizeof sv, v, 3); fnum(si, sizeof si, i, 5); fnum(sp, sizeof sp, v * i, 5);
+  fnum(st, sizeof st, tempUltima, 1); fnum(sg, sizeof sg, g, 0);
+  snprintf(buf, sizeof buf, "{\"type\":\"sample\",\"ts\":%lu,\"v\":%s,\"i\":%s,\"p\":%s,\"temperature\":%s,\"irradiance\":%s,\"mask\":%u,\"valid\":%s}",
+           (unsigned long)ts, sv, si, sp, st, sg, mascaraMon, ok ? "true" : "false");
+  ws.broadcastTXT(buf);
+}
+
 uint32_t tTemp = 0;
 void refrescarTemperatura() {
 #if USAR_DS18B20
-  if (barriendo || millis() - tTemp < 10000) return;
+  if (barriendo || muestreando || millis() - tTemp < 10000) return;
   tTemp = millis();
   leerTemperatura();
 #endif
 }
 
 void telemetria() {
+  if (MUESTREO_S > 0) return;           // con medicion continua, las mediciones llegan como "sample"
   if (barriendo || !adsOk || ws.connectedClients() == 0 || millis() - tTelemetria < 2000) return;
   tTelemetria = millis();
   autoCero();                          // con los reles abiertos la corriente es 0: se re-calibra el offset
@@ -498,8 +582,15 @@ void loop() {
   ws.loop();
   web.handleClient();
   pasoBarrido();
+  pasoMuestra();
   refrescarTemperatura();
   telemetria();
+  if (!adsOk && millis() - tReintentoADS > 10000) {       // si el ADS se cayo, reintenta cada 10 s
+    tReintentoADS = millis();
+    adsOk = ads.begin(0x48, &Wire);
+    if (adsOk) ads.setDataRate(RATE_ADS1115_128SPS);
+  }
+  if (MUESTREO_S > 0 && adsOk && !barriendo && !muestreando && millis() - tMuestra >= MUESTREO_S * 1000UL) { tMuestra = millis(); iniciarMuestra(); }
   if (!barriendo && AUTO_BARRIDO_S > 0 && millis() - tUltimoBarrido > AUTO_BARRIDO_S * 1000UL) { tUltimoBarrido = millis(); iniciarBarrido(); }
   if (pendienteEnvio && !barriendo && (int32_t)(millis() - tReintento) >= 0) {
     if (enviarAlServidor()) pendienteEnvio = false; else tReintento = millis() + 30000;   // reintenta cada 30 s

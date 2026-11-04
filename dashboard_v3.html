@@ -298,10 +298,12 @@
   </div>
 
   <div id="liveSec" style="display:none">
-    <div class="section-title">En vivo (ultimos 5 min, reles abiertos)</div>
+    <div class="section-title" id="liveTitle">En vivo (ultimos 10 min)</div>
     <div class="g3" style="grid-template-columns:repeat(2,minmax(0,1fr))">
-      <section class="card"><div class="card-header"><div><h2>Voltaje del panel en vivo</h2><div class="sub">V &middot; sin carga (Voc): sube con la luz y baja al taparlo</div></div></div><div class="card-body" id="c_lv"></div></section>
-      <section class="card"><div class="card-header"><div><h2>Temperatura en vivo</h2><div class="sub">&deg;C &middot; DS18B20</div></div></div><div class="card-body" id="c_lt"></div></section>
+      <section class="card"><div class="card-header"><div><h2>Voltaje del panel</h2><div class="sub" id="lvSub">V</div></div></div><div class="card-body" id="c_lv"></div></section>
+      <section class="card"><div class="card-header"><div><h2>Corriente del panel</h2><div class="sub" id="liSub">mA</div></div></div><div class="card-body" id="c_li"></div></section>
+      <section class="card"><div class="card-header"><div><h2>Potencia del panel</h2><div class="sub">mW &middot; V x I</div></div></div><div class="card-body" id="c_lp"></div></section>
+      <section class="card"><div class="card-header"><div><h2>Temperatura</h2><div class="sub">&deg;C &middot; DS18B20</div></div></div><div class="card-body" id="c_lt"></div></section>
     </div>
   </div>
 
@@ -356,7 +358,7 @@ const SCEN = { clean:{deg:1.0,g:1,dT:0}, dirty:{deg:0.885,g:1,dT:0}, severe:{deg
 const S = {
   status:"idle", source:"mock", mock:true, transport:"websocket", ip:"192.168.4.1",
   points:[], metrics:null, temperature:NaN, irradiance:NaN, live:null, device:{}, rx:0, sweeping:false, expected:0, error:null,
-  scenario:"dirty", simH:NaN, tManual:NaN, test:false, liveHist:[],
+  scenario:"dirty", simH:NaN, tManual:NaN, test:false, liveHist:[], liveKind:"telemetry",
   hist:[],      // barridos de hoy: {ts,h,pmax,vmp,imp,G,T,eff,pr,num,den}
   pastPR:[],    // PR diario de los 29 dias previos (%)
   nominal:{ pmax:1.5, voc:9.0, isc:0.212, vmp:7.5, imp:0.200, area:0.01035, alphaIsc:0.05, gammaPmax:-0.4, thr:90 },
@@ -542,8 +544,8 @@ function renderMetrics() {
   const m=S.metrics, d=derive(), a=alertState();
   const stTxt = a.level==="crit"?"Mantenimiento":a.level==="warn"?"Vigilar":"Normal";
   const live = (S.live && !S.mock) ? [
-    metricCard(ICONS.vmp,"V ahora",nf(S.live.v,2),"V","en vivo (sin carga = Voc)"),
-    metricCard(ICONS.imp,"I ahora",nf(S.live.i*1000,2),"mA","en vivo (reles abiertos)"),
+    metricCard(ICONS.vmp,"V ahora",nf(S.live.v,2),"V",S.liveKind==="sample"?"medido bajo carga":"en vivo (sin carga = Voc)"),
+    metricCard(ICONS.imp,"I ahora",nf(S.live.i*1000,2),"mA",S.liveKind==="sample"?"medida bajo carga":"en vivo (reles abiertos)"),
     metricCard(ICONS.pmax,"P ahora",nf(S.live.p*1000,2),"mW","V x I en vivo") ] : [];
   $("metrics").innerHTML = live.concat([
     S.test ? metricCard(ICONS.pmax,"Pmax",nf(m&&m.pmax*1000,2),"mW","Potencia maxima") : metricCard(ICONS.pmax,"Pmax",nf(m&&m.pmax,2),"W","Potencia maxima"),
@@ -696,14 +698,21 @@ function renderHeader() {
 function renderLiveCharts(){
   const sec=$("liveSec"); sec.style.display=(S.mock||!S.liveHist.length)?"none":"";
   if (S.mock||!S.liveHist.length) return;
-  const now=Date.now(), H=S.liveHist.filter(p=>now-p.t<=300000), xt=[-300,-240,-180,-120,-60,0], xf=v=>v===0?"ahora":(v/60)+" min";
-  const pv=H.map(p=>[(p.t-now)/1000,p.v]), pt=H.filter(p=>isNum(p.T)).map(p=>[(p.t-now)/1000,p.T]);
-  const vy=niceTicks(0,Math.max(1,...pv.map(p=>p[1]*1.1)),4);
-  drawChart("c_lv",{ w:520,h:230,ml:46,xmin:-300,xmax:0,xticks:xt,xf,xlab:"Tiempo",ymin:0,ymax:vy[vy.length-1],yticks:vy,ylab:"Voltaje (V)",yf:v=>nf(v,1),series:[{pts:pv}],last:pv.length?pv[pv.length-1]:null,
-    tip:b=>`${Math.abs(Math.round(b[0]))} s atras &middot; ${b[1].toFixed(2)} V` });
+  const W=600000, now=Date.now(), H=S.liveHist.filter(p=>now-p.t<=W), xt=[-600,-480,-360,-240,-120,0], xf=v=>v===0?"ahora":(Math.abs(v)/60)+" min";
+  const sample=S.liveKind==="sample";
+  $("lvSub").textContent=sample?"V · medido bajo la carga de monitoreo":"V · sin carga (Voc): sube con la luz y baja al taparlo";
+  $("liSub").textContent=sample?"mA · medida bajo la carga de monitoreo":"mA · con los reles abiertos solo se ve la corriente del divisor";
+  $("liveTitle").textContent="En vivo (ultimos 10 min)"+(sample?" · medicion continua":"");
+  const mk=(f)=>H.filter(p=>isNum(f(p))).map(p=>[(p.t-now)/1000,f(p)]);
+  const pv=mk(p=>p.v), pi=mk(p=>p.i*1000), pp=mk(p=>p.p*1000), pt=mk(p=>p.T);
+  const base={ w:520,h:230,ml:46,xmin:-600,xmax:0,xticks:xt,xf,xlab:"Tiempo" };
+  const draw=(id,pts,ylab,unit,dec,minTop)=>{ const ty=niceTicks(0,Math.max(minTop,...pts.map(p=>p[1]*1.1)),4);
+    drawChart(id,Object.assign({},base,{ymin:0,ymax:ty[ty.length-1],yticks:ty,ylab,yf:v=>nf(v,dec),series:[{pts}],last:pts.length?pts[pts.length-1]:null,
+      tip:b=>`${Math.abs(Math.round(b[0]))} s atras &middot; ${b[1].toFixed(dec+1)} ${unit}`})); };
+  draw("c_lv",pv,"Voltaje (V)","V",1,1); draw("c_li",pi,"Corriente (mA)","mA",0,1); draw("c_lp",pp,"Potencia (mW)","mW",0,1);
   const lo=pt.length?Math.min(...pt.map(p=>p[1])):20, hi=pt.length?Math.max(...pt.map(p=>p[1])):30, ty=niceTicks(Math.floor(lo-1),Math.ceil(hi+1),4);
-  drawChart("c_lt",{ w:520,h:230,ml:46,xmin:-300,xmax:0,xticks:xt,xf,xlab:"Tiempo",ymin:ty[0],ymax:ty[ty.length-1],yticks:ty,ylab:"Temperatura (C)",yf:v=>nf(v,0),series:[{pts:pt}],last:pt.length?pt[pt.length-1]:null,
-    tip:b=>`${Math.abs(Math.round(b[0]))} s atras &middot; ${b[1].toFixed(1)} C` });
+  drawChart("c_lt",Object.assign({},base,{ymin:ty[0],ymax:ty[ty.length-1],yticks:ty,ylab:"Temperatura (C)",yf:v=>nf(v,0),series:[{pts:pt}],last:pt.length?pt[pt.length-1]:null,
+    tip:b=>`${Math.abs(Math.round(b[0]))} s atras &middot; ${b[1].toFixed(1)} C`}));
 }
 function renderAll(){ renderHeader(); renderMetrics(); renderCurves(); renderTable(); renderDiag(); renderProgress(); renderTrends(); renderAlert(); renderLiveCharts(); }
 function renderLive(){ renderMetrics(); renderCurves(); renderTable(); renderDiag(); renderProgress(); renderHeader(); }
@@ -752,7 +761,13 @@ function handleMessage(raw) {
       if(msg.valid===false){ S.sweeping=false; S.status="connected"; S.error="Barrido descartado: la luz cambio durante el barrido (variacion "+(isNum(msg.var)?(msg.var*100).toFixed(0)+" %":"mayor al umbral")+"). No se guardo en el historial; repetilo."; renderAll(); break; }
       finishSweep(undefined,msg.metrics); break;
     case "telemetry": S.live={v:msg.v,i:msg.i,p:isNum(msg.p)?msg.p:(isNum(msg.v)&&isNum(msg.i)?msg.v*msg.i:NaN)}; if(isNum(msg.temperature)) S.temperature=msg.temperature; if(isNum(msg.irradiance)) S.irradiance=msg.irradiance;
-      S.liveHist.push({t:Date.now(),v:msg.v,T:isNum(msg.temperature)?msg.temperature:NaN}); if(S.liveHist.length>200) S.liveHist.shift();
+      S.liveKind="telemetry"; S.liveHist.push({t:Date.now(),v:msg.v,i:msg.i,p:isNum(msg.p)?msg.p:msg.v*msg.i,T:isNum(msg.temperature)?msg.temperature:NaN}); if(S.liveHist.length>720) S.liveHist.shift();
+      renderMetrics(); renderLiveCharts(); renderHeader(); break;
+    case "sample": S.liveKind="sample"; S.rx+=0;
+      if(msg.valid!==false){ S.live={v:msg.v,i:msg.i,p:isNum(msg.p)?msg.p:msg.v*msg.i}; }
+      if(isNum(msg.temperature)) S.temperature=msg.temperature; if(isNum(msg.irradiance)) S.irradiance=msg.irradiance;
+      if(msg.valid!==false) S.liveHist.push({t:Date.now(),v:msg.v,i:msg.i,p:isNum(msg.p)?msg.p:msg.v*msg.i,T:isNum(msg.temperature)?msg.temperature:NaN,G:isNum(msg.irradiance)?msg.irradiance:NaN});
+      if(S.liveHist.length>720) S.liveHist.shift();
       renderMetrics(); renderLiveCharts(); renderHeader(); break;
     case "error": S.error=msg.message||"Error del firmware."; S.sweeping=false; S.status="error"; renderAll(); break;
   }
